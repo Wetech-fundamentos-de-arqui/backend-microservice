@@ -86,7 +86,7 @@ public class UnlockRequestService {
         if ("maintenance".equals(vehicle.getStatus()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El vehículo está en mantenimiento");
         request.attempt(command.method(), command.unlockCode(), vehicle.getLicensePlate());
-        if ("unlocked".equals(request.getStatus()) && "reserved".equals(booking.getStatus())) booking.startRide();
+        // El desbloqueo ya no inicia el viaje: arranca cuando el usuario confirma el destino (PUT /bookings/{id}/start).
         return requests.save(request);
     }
 }
