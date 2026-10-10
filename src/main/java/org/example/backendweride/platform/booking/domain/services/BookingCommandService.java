@@ -16,4 +16,7 @@ public interface BookingCommandService {
     Optional<Booking> handle(CancelBookingCommand command);
     void handle(DeleteBookingCommand command);
     Optional<Booking> handle(org.example.backendweride.platform.booking.domain.model.commands.RateBookingCommand command);
+    Optional<Booking> handle(org.example.backendweride.platform.booking.domain.model.commands.SetDestinationCommand command);
+    /** Estimate of riding the booking's vehicle from its pickup station to the given point, without saving anything. */
+    Optional<org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate> quoteDestination(String bookingId, Double lat, Double lng);
 }

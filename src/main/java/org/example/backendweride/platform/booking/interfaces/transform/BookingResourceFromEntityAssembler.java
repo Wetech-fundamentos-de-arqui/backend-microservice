@@ -48,7 +48,14 @@ public class BookingResourceFromEntityAssembler {
                 entity.getAverageSpeed(),
                 ratingResource,
                 route,
-                entity.getRouteSource()
+                entity.getRouteSource(),
+                entity.getDestinationLat(),
+                entity.getDestinationLng(),
+                entity.getDestinationAddress(),
+                entity.getEstimatedDistance(),
+                entity.getEstimatedDuration(),
+                entity.getEstimatedCost(),
+                entity.destinationChangeFeesOrZero()
         );
     }
 }

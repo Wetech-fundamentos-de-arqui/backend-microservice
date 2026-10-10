@@ -101,6 +101,10 @@ public class Vehicle {
         this.rating = command.rating();
     }
 
+    public void moveTo(String locationId) {
+        this.location = locationId;
+    }
+
     public void markForMaintenance() {
         this.status = "maintenance";
         this.maintenanceStatus = "pending";

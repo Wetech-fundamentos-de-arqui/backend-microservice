@@ -30,7 +30,14 @@ public record BookingResource(
         Double averageSpeed,
         RatingResource rating,
         List<TripRouteCoordinate> routeCoordinates,
-        String routeSource
+        String routeSource,
+        Double destinationLat,
+        Double destinationLng,
+        String destinationAddress,
+        Double estimatedDistance,
+        Integer estimatedDuration,
+        Double estimatedCost,
+        Double destinationChangeFees
 ) {
     public record RatingResource(Integer score, String comment, java.util.List<String> tags) {}
 }

@@ -25,7 +25,7 @@ class BookingBatteryTest {
         when(vehicle.getType()).thenReturn("electric_scooter");
         var accounts = mock(org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountRepository.class);
         when(accounts.findLockedById(7L)).thenReturn(Optional.of(new org.example.backendweride.platform.iam.domain.model.aggregates.Account("test@example.com", "hash")));
-        var service = new BookingCommandServiceImpl(bookings, vehicles, accounts);
+        var service = new BookingCommandServiceImpl(bookings, vehicles, accounts, mock(org.example.backendweride.platform.location.infrastructure.persistence.jpa.LocationRepository.class));
         for (int battery : List.of(0, 14)) {
             when(vehicle.getBattery()).thenReturn(battery);
             for (Date start : new Date[] {null, new Date(System.currentTimeMillis() + 3600000)}) {

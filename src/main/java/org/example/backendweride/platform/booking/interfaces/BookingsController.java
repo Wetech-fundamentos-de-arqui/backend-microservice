@@ -79,8 +79,53 @@ public class BookingsController {
         return new ResponseEntity<>(bookingResource, HttpStatus.CREATED);
     }
 
+    // 1b. POST: Cotizar un destino sin guardarlo
+    @Operation(summary = "Quote a destination", description = "Estimate distance, minutes and cost of riding from the booking's pickup station to a free point. Nothing is saved. changeFee is only charged when the ride already started.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Quote computed"),
+            @ApiResponse(responseCode = "400", description = "Invalid coordinates"),
+            @ApiResponse(responseCode = "404", description = "Booking not found"),
+            @ApiResponse(responseCode = "422", description = "Destination farther than 60 km from the pickup station")
+    })
+    @PostMapping("/{bookingId}/destination/quote")
+    public ResponseEntity<org.example.backendweride.platform.booking.interfaces.resources.DestinationQuoteResource> quoteDestination(
+            @PathVariable String bookingId,
+            @RequestBody org.example.backendweride.platform.booking.interfaces.resources.DestinationResource resource,
+            Authentication authentication) {
+        var owned = ownedBooking(bookingId, authentication);
+        if (owned.isEmpty()) return ResponseEntity.notFound().build();
+        double changeFee = "in_progress".equals(owned.get().getStatus())
+                ? org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate.DESTINATION_CHANGE_FEE : 0.0;
+        return bookingCommandService.quoteDestination(bookingId, resource.lat(), resource.lng())
+                .map(estimate -> ResponseEntity.ok(new org.example.backendweride.platform.booking.interfaces.resources.DestinationQuoteResource(
+                        estimate.distanceKm(), estimate.durationMinutes(), estimate.pricePerMinute(), estimate.estimatedCost(),
+                        0.0, changeFee, estimate.estimatedCost() + changeFee)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // 1c. PUT: Fijar o cambiar el destino
+    @Operation(summary = "Set or change the destination", description = "Store the free destination point and its estimate. Free while the booking is reserved; once the ride is in progress every change adds a fixed fee that is charged on completion.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Destination stored"),
+            @ApiResponse(responseCode = "400", description = "Invalid coordinates"),
+            @ApiResponse(responseCode = "404", description = "Booking not found"),
+            @ApiResponse(responseCode = "409", description = "Booking is completed or cancelled"),
+            @ApiResponse(responseCode = "422", description = "Destination farther than 60 km from the pickup station")
+    })
+    @PutMapping("/{bookingId}/destination")
+    public ResponseEntity<BookingResource> setDestination(
+            @PathVariable String bookingId,
+            @RequestBody org.example.backendweride.platform.booking.interfaces.resources.DestinationResource resource,
+            Authentication authentication) {
+        if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
+        return bookingCommandService.handle(new org.example.backendweride.platform.booking.domain.model.commands.SetDestinationCommand(
+                        bookingId, resource.lat(), resource.lng(), resource.address()))
+                .map(b -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceFromEntity(b)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     // 2. PUT: Iniciar Viaje
-    @Operation(summary = "Start a ride", description = "Mark the booking as started so the ride begins.")
+    @Operation(summary = "Start a ride", description = "Mark the booking as started so the ride begins. Requires a destination set beforehand (409 otherwise).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Ride started successfully"),
             @ApiResponse(responseCode = "404", description = "Booking not found"),

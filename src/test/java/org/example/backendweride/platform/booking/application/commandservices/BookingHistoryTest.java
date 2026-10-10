@@ -26,7 +26,7 @@ class BookingHistoryTest {
         booking.startRide();
         var route = List.of(new TripRouteCoordinate(-12.1, -77.1), new TripRouteCoordinate(-12.2, -77.2));
         when(repository.findLockedById(booking.getId())).thenReturn(Optional.of(booking));
-        var result = new BookingCommandServiceImpl(repository, mock(org.example.backendweride.platform.garage.infrastructure.persistence.jpa.VehicleRepository.class), mock(org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountRepository.class)).handle(new CompleteBookingCommand(
+        var result = new BookingCommandServiceImpl(repository, mock(org.example.backendweride.platform.garage.infrastructure.persistence.jpa.VehicleRepository.class), mock(org.example.backendweride.platform.iam.infrastructure.persistence.jpa.repositories.AccountRepository.class), mock(org.example.backendweride.platform.location.infrastructure.persistence.jpa.LocationRepository.class)).handle(new CompleteBookingCommand(
                 booking.getId(), 10.0, 2.0, 1.5, 5, 18.0, null, null, route, null)).orElseThrow();
         verify(repository).save(booking);
         assertEquals("completed", result.getStatus());

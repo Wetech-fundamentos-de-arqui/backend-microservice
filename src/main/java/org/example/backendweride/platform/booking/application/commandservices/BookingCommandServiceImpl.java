@@ -6,7 +6,11 @@ import org.example.backendweride.platform.booking.domain.model.commands.CreateBo
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.SetDestinationCommand;
 import org.example.backendweride.platform.booking.domain.model.valueobjects.Rating; // <--- Importante
+import org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate;
+import org.example.backendweride.platform.location.domain.model.aggregates.Location;
+import org.example.backendweride.platform.location.infrastructure.persistence.jpa.LocationRepository;
 import org.example.backendweride.platform.booking.domain.services.BookingCommandService;
 import org.example.backendweride.platform.booking.infrastructure.persistence.jpa.BookingRepository;
 import org.example.backendweride.platform.garage.infrastructure.persistence.jpa.VehicleRepository;
@@ -24,11 +28,60 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     private final BookingRepository bookingRepository;
     private final VehicleRepository vehicleRepository;
     private final AccountRepository accountRepository;
+    private final LocationRepository locationRepository;
 
-    public BookingCommandServiceImpl(BookingRepository bookingRepository, VehicleRepository vehicleRepository, AccountRepository accountRepository) {
+    public BookingCommandServiceImpl(BookingRepository bookingRepository, VehicleRepository vehicleRepository, AccountRepository accountRepository, LocationRepository locationRepository) {
         this.bookingRepository = bookingRepository;
         this.vehicleRepository = vehicleRepository;
         this.accountRepository = accountRepository;
+        this.locationRepository = locationRepository;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Booking> handle(SetDestinationCommand command) {
+        return bookingRepository.findLockedById(command.bookingId()).map(booking -> {
+            booking.setDestination(command.lat(), command.lng(), command.address(), estimate(booking, command.lat(), command.lng()));
+            return bookingRepository.save(booking);
+        });
+    }
+
+    @Override
+    public Optional<TripEstimate> quoteDestination(String bookingId, Double lat, Double lng) {
+        return bookingRepository.findById(bookingId).map(booking -> estimate(booking, lat, lng));
+    }
+
+    private TripEstimate estimate(Booking booking, Double lat, Double lng) {
+        if (lat == null || lng == null || !Double.isFinite(lat) || !Double.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Destino inválido");
+        var origin = parseId(booking.getStartLocationId()).flatMap(locationRepository::findById)
+                .map(Location::getCoordinates)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "La reserva no tiene una estación de origen válida"));
+        if (TripEstimate.straightKm(origin.lat(), origin.lng(), lat, lng) > TripEstimate.MAX_DISTANCE_KM)
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Destino fuera de cobertura");
+        var vehicle = parseId(booking.getVehicleId()).flatMap(vehicleRepository::findById)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));
+        return TripEstimate.between(origin.lat(), origin.lng(), lat, lng, vehicle.getType(), vehicle.getPricePerMinute());
+    }
+
+    private static Optional<Long> parseId(String id) {
+        try { return Optional.of(Long.parseLong(id)); }
+        catch (NumberFormatException exception) { return Optional.empty(); }
+    }
+
+    /** After a ride to a free point, the vehicle is shown at the station closest to where it was left. */
+    private void moveVehicleNearDestination(Booking booking) {
+        if (!booking.hasDestination()) return;
+        var vehicle = parseId(booking.getVehicleId()).flatMap(vehicleRepository::findById);
+        if (vehicle.isEmpty()) return;
+        locationRepository.findAll().stream()
+                .filter(location -> location.getCoordinates() != null)
+                .min(java.util.Comparator.comparingDouble(location -> TripEstimate.straightKm(
+                        location.getCoordinates().lat(), location.getCoordinates().lng(), booking.getDestinationLat(), booking.getDestinationLng())))
+                .ifPresent(nearest -> {
+                    vehicle.get().moveTo(String.valueOf(nearest.getId()));
+                    vehicleRepository.save(vehicle.get());
+                });
     }
 
     // 1. Crear Reserva
@@ -69,6 +122,9 @@ public class BookingCommandServiceImpl implements BookingCommandService {
 
         if (bookingOptional.isPresent()) {
             var booking = bookingOptional.get();
+            // Ningún viaje arranca sin destino: el cliente lo fija con PUT /bookings/{id}/destination antes de iniciar.
+            if (!booking.hasDestination())
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Marca el destino antes de iniciar el viaje");
             booking.startRide();
             bookingRepository.save(booking);
             return Optional.of(booking);
@@ -100,6 +156,7 @@ public class BookingCommandServiceImpl implements BookingCommandService {
                     command.routeCoordinates()
             );
             booking.markRouteSource(command.routeSource());
+            moveVehicleNearDestination(booking);
 
             // Guardamos los cambios
             bookingRepository.save(booking);
