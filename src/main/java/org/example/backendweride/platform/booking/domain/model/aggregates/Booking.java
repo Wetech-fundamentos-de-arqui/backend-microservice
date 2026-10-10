@@ -52,6 +52,37 @@ public class Booking {
 
     private String routeSource = "gps";
 
+    // Destino libre marcado por el usuario. Columnas opcionales: las reservas anteriores las tienen en null.
+    private Double destinationLat;
+    private Double destinationLng;
+    private String destinationAddress;
+    private Double estimatedDistance;
+    private Integer estimatedDuration;
+    private Double estimatedCost;
+    private Double destinationChangeFees;
+
+    public boolean hasDestination() {
+        return destinationLat != null && destinationLng != null;
+    }
+
+    public double destinationChangeFeesOrZero() {
+        return destinationChangeFees == null ? 0.0 : destinationChangeFees;
+    }
+
+    /** Free while the booking is only reserved; every change after the ride started adds a fixed fee. */
+    public void setDestination(double lat, double lng, String address, org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate estimate) {
+        if ("in_progress".equals(status))
+            this.destinationChangeFees = destinationChangeFeesOrZero() + org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate.DESTINATION_CHANGE_FEE;
+        else if (!"reserved".equals(status))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Booking destination can no longer change");
+        this.destinationLat = lat;
+        this.destinationLng = lng;
+        this.destinationAddress = address == null || address.isBlank() ? null : address.strip().substring(0, Math.min(address.strip().length(), 255));
+        this.estimatedDistance = estimate.distanceKm();
+        this.estimatedDuration = estimate.durationMinutes();
+        this.estimatedCost = estimate.estimatedCost();
+    }
+
     public List<TripRouteCoordinate> getRouteCoordinates() {
         return routeCoordinates == null ? List.of() : List.copyOf(routeCoordinates);
     }
@@ -155,7 +186,7 @@ public class Booking {
 
         this.totalCost = totalCost;
         this.discount = discount;
-        this.finalCost = totalCost - discount;
+        this.finalCost = totalCost - discount + destinationChangeFeesOrZero();
 
         this.distance = distance;
         this.duration = duration;
