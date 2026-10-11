@@ -28,7 +28,7 @@ public class UnlockRequestsController {
             @Schema(description = "Vehicle ID matching the booking", example = "1") @NotBlank String vehicleId,
             @Schema(description = "Unlock method", allowableValues = {"manual", "qr_code"}) @NotBlank String method) {}
 
-    @Operation(summary = "Create an unlock request", description = "Create a pending request for a booking of the authenticated user. Creating the request does not start the ride. Request timestamps and scheduled time are set by the server.")
+    @Operation(summary = "Create an unlock request", description = "Create a pending request for a booking of the authenticated user. The server generates a random 6-character accessCode valid for 15 minutes and stores a notification carrying it; creating another request issues a fresh code. Creating the request does not start the ride. Request timestamps and scheduled time are set by the server.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Pending unlock request created"),
             @ApiResponse(responseCode = "400", description = "Invalid method, missing fields or vehicle does not match booking"),
@@ -70,7 +70,7 @@ public class UnlockRequestsController {
         return UnlockRequestResource.from(service.owned(id, String.valueOf(CurrentUser.id(authentication))));
     }
 
-    @Operation(summary = "Attempt or retry a vehicle unlock", description = "Validate QR content weride:vehicle:<id> or the vehicle license plate for manual unlock. A recognized code changes the request to unlocked and starts the reserved booking transactionally; an unrecognized code returns 200 with status failed and permits retry. The server sets actualUnlockTime. Future or expired bookings cannot unlock; this simulation has no camera, IoT command or automatic timed unlock.")
+    @Operation(summary = "Attempt or retry a vehicle unlock", description = "Validate QR content weride:vehicle:<id>, or the request's server-generated accessCode for manual unlock. An expired accessCode fails like a wrong one, with errorMessage saying so. A recognized code changes the request to unlocked and starts the reserved booking transactionally; an unrecognized code returns 200 with status failed and permits retry. The server sets actualUnlockTime. Future or expired bookings cannot unlock; this simulation has no camera, IoT command or automatic timed unlock.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Attempt processed; inspect status unlocked or failed and errorMessage"),
             @ApiResponse(responseCode = "400", description = "Invalid method or missing/oversized code"),

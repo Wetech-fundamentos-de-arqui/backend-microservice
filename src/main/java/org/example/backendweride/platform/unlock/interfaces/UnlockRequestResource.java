@@ -18,11 +18,14 @@ public record UnlockRequestResource(
         @Schema(description = "Compatibility field; always null because no location telemetry is collected", nullable = true) Object location,
         @Schema(description = "Code submitted on the latest attempt; empty before the first attempt", example = "weride:vehicle:7") String unlockCode,
         @Schema(description = "Number of processed code attempts", minimum = "0", example = "1") int attempts,
-        @Schema(description = "Reason for a failed code; null when no code error exists", nullable = true) String errorMessage) {
+        @Schema(description = "Reason for a failed code; null when no code error exists", nullable = true) String errorMessage,
+        @Schema(description = "Server-generated 6-character code the owner types for manual unlock; null on requests created before codes existed", example = "K7M2QX", nullable = true) String accessCode,
+        @Schema(description = "Instant after which accessCode is rejected: 15 minutes after the request, or after the scheduled start if that is later", nullable = true) Instant codeExpiresAt) {
     public static UnlockRequestResource from(UnlockRequest request) {
         return new UnlockRequestResource(request.getId(), request.getUserId(), request.getVehicleId(),
                 request.getBookingId(), request.getRequestedAt(), request.getScheduledUnlockTime(),
                 request.getActualUnlockTime(), request.getStatus(), request.getMethod(), null,
-                request.getUnlockCode(), request.getAttempts(), request.getErrorMessage());
+                request.getUnlockCode(), request.getAttempts(), request.getErrorMessage(),
+                request.getAccessCode(), request.getCodeExpiresAt());
     }
 }
