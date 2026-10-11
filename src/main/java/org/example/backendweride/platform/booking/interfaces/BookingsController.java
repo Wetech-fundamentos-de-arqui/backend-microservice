@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 
 import org.example.backendweride.platform.booking.domain.model.aggregates.Booking;
 import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
-import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.ArchiveBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
 import org.example.backendweride.platform.booking.domain.model.queries.GetActiveBookingsByVehicleIdQuery;
 import org.example.backendweride.platform.booking.domain.model.queries.GetAllBookingsByUserIdQuery;
@@ -38,17 +38,37 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-@Tag(name = "Bookings", description = "Reserve vehicles and manage the booking lifecycle: create, start, complete, cancel, list and delete bookings of the authenticated user.")
+@Tag(name = "Bookings", description = "Reserve vehicles and manage the booking lifecycle: create, start, complete, cancel, list and archive bookings of the authenticated user.")
 @RestController
 @RequestMapping(value = "/api/v1/bookings")
 public class BookingsController {
 
     private final BookingCommandService bookingCommandService;
     private final BookingQueryService bookingQueryService;
+    private final org.example.backendweride.platform.garage.infrastructure.persistence.jpa.VehicleRepository vehicleRepository;
+    private final org.example.backendweride.platform.location.infrastructure.persistence.jpa.LocationRepository locationRepository;
+    private final org.example.backendweride.platform.unlock.infrastructure.UnlockRequestRepository unlockRequestRepository;
 
-    public BookingsController(BookingCommandService bookingCommandService, BookingQueryService bookingQueryService) {
+    public BookingsController(BookingCommandService bookingCommandService, BookingQueryService bookingQueryService,
+                              org.example.backendweride.platform.garage.infrastructure.persistence.jpa.VehicleRepository vehicleRepository,
+                              org.example.backendweride.platform.location.infrastructure.persistence.jpa.LocationRepository locationRepository,
+                              org.example.backendweride.platform.unlock.infrastructure.UnlockRequestRepository unlockRequestRepository) {
         this.bookingCommandService = bookingCommandService;
         this.bookingQueryService = bookingQueryService;
+        this.vehicleRepository = vehicleRepository;
+        this.locationRepository = locationRepository;
+        this.unlockRequestRepository = unlockRequestRepository;
+    }
+
+    // Los ids de vehículo y estación se guardan como texto; uno no numérico se trata como inexistente.
+    private static Optional<Long> numericId(String id) {
+        try { return Optional.of(Long.parseLong(id)); } catch (NumberFormatException | NullPointerException e) { return Optional.empty(); }
+    }
+
+    private org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource.StationSummary station(String id) {
+        return numericId(id).flatMap(locationRepository::findById)
+                .map(l -> new org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource.StationSummary(id, l.getName(), l.getAddress()))
+                .orElse(null);
     }
 
     /** Finds a booking and checks it belongs to the caller; empty means 404. */
@@ -231,6 +251,34 @@ public class BookingsController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Get booking details", description = "Return one booking owned by the authenticated user together with its vehicle, start and end stations and, while the booking is reserved or in progress, the vehicle's current battery and the latest unlock request with its access code.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Booking details retrieved"),
+            @ApiResponse(responseCode = "404", description = "Booking not found"),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
+            @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
+    })
+    @GetMapping("/{bookingId}/details")
+    public ResponseEntity<org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource> getBookingDetails(
+            @Parameter(description = "Unique identifier of the booking") @PathVariable String bookingId, Authentication authentication) {
+        return ownedBooking(bookingId, authentication).map(booking -> {
+            boolean active = Booking.ACTIVE_STATUSES.contains(booking.getStatus());
+            var vehicle = numericId(booking.getVehicleId()).flatMap(vehicleRepository::findById)
+                    .map(v -> new org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource.VehicleSummary(
+                            booking.getVehicleId(), v.getBrand(), v.getModel(), v.getType(), v.getImage(), v.getColor(),
+                            v.getPricePerMinute(), active ? v.getBattery() : null))
+                    .orElse(null);
+            var unlock = !active ? null : unlockRequestRepository.findAllByUserIdOrderByRequestedAtDesc(booking.getUserId()).stream()
+                    .filter(r -> bookingId.equals(r.getBookingId())).findFirst()
+                    .map(r -> new org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource.UnlockSummary(
+                            r.getId(), r.getStatus(), r.getAccessCode(), r.getCodeExpiresAt()))
+                    .orElse(null);
+            return ResponseEntity.ok(new org.example.backendweride.platform.booking.interfaces.resources.BookingDetailsResource(
+                    BookingResourceFromEntityAssembler.toResourceFromEntity(booking), vehicle,
+                    station(booking.getStartLocationId()), station(booking.getEndLocationId()), unlock));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     // 4b. GET: Disponibilidad de un vehículo considerando las reservas de todos los usuarios
     @Operation(summary = "Check vehicle availability", description = "Tell whether a vehicle is free between start and end (ISO-8601 instants) and list its busy slots. Slots are anonymous.")
     @ApiResponses(value = {
@@ -249,19 +297,21 @@ public class BookingsController {
         return ResponseEntity.ok(new VehicleAvailabilityResource(busy.stream().noneMatch(b -> b.overlaps(from, to)), slots));
     }
 
-    // 5. DELETE: Borrar reserva
-    @Operation(summary = "Delete a booking", description = "Permanently delete a booking of the authenticated user.")
+    // 5. PUT: Archivar reserva (sustituye al borrado: el historial se conserva)
+    @Operation(summary = "Archive a booking", description = "Mark a completed or cancelled booking of the authenticated user as archived. The booking is kept and still returned by the list endpoints with archived=true.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Booking deleted successfully"),
+            @ApiResponse(responseCode = "200", description = "Booking archived successfully"),
             @ApiResponse(responseCode = "404", description = "Booking not found"),
+            @ApiResponse(responseCode = "409", description = "Booking is still reserved or in progress"),
             @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token"),
             @ApiResponse(responseCode = "403", description = "The resource belongs to another user")
     })
-    @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> deleteBooking(@Parameter(description = "Unique identifier of the booking") @PathVariable String bookingId, Authentication authentication) {
+    @PutMapping("/{bookingId}/archive")
+    public ResponseEntity<BookingResource> archiveBooking(@Parameter(description = "Unique identifier of the booking") @PathVariable String bookingId, Authentication authentication) {
         if (ownedBooking(bookingId, authentication).isEmpty()) return ResponseEntity.notFound().build();
-        bookingCommandService.handle(new DeleteBookingCommand(bookingId));
-        return ResponseEntity.noContent().build();
+        return bookingCommandService.handle(new ArchiveBookingCommand(bookingId))
+                .map(b -> ResponseEntity.ok(BookingResourceFromEntityAssembler.toResourceFromEntity(b)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // 6. PATCH: Cancelar reserva

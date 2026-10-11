@@ -1,4 +1,4 @@
 package org.example.backendweride.platform.booking.domain.model.commands;
 
-public record DeleteBookingCommand(String bookingId) {
+public record ArchiveBookingCommand(String bookingId) {
 }

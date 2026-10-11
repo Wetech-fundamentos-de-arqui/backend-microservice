@@ -5,7 +5,7 @@ import org.example.backendweride.platform.booking.domain.model.commands.Complete
 import org.example.backendweride.platform.booking.domain.model.commands.CreateBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.StartRideCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.CancelBookingCommand;
-import org.example.backendweride.platform.booking.domain.model.commands.DeleteBookingCommand;
+import org.example.backendweride.platform.booking.domain.model.commands.ArchiveBookingCommand;
 import org.example.backendweride.platform.booking.domain.model.commands.SetDestinationCommand;
 import org.example.backendweride.platform.booking.domain.model.valueobjects.Rating; // <--- Importante
 import org.example.backendweride.platform.booking.domain.model.valueobjects.TripEstimate;
@@ -176,8 +176,12 @@ public class BookingCommandServiceImpl implements BookingCommandService {
     }
 
     @Override
-    public void handle(DeleteBookingCommand command) {
-        bookingRepository.deleteById(command.bookingId());
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<Booking> handle(ArchiveBookingCommand command) {
+        return bookingRepository.findLockedById(command.bookingId()).map(booking -> {
+            booking.archive();
+            return bookingRepository.save(booking);
+        });
     }
 
     @Override

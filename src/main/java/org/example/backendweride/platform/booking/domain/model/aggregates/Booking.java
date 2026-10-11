@@ -141,6 +141,20 @@ public class Booking {
         this.actualStartDate = new Date();
     }
 
+    // Nullable: las reservas anteriores a esta columna la tienen en null (= no archivada).
+    private Boolean archived;
+
+    public boolean isArchived() {
+        return Boolean.TRUE.equals(archived);
+    }
+
+    /** Hides a finished booking from the default list without losing its history. */
+    public void archive() {
+        if (!"completed".equals(status) && !"cancelled".equals(status))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Only completed or cancelled bookings can be archived");
+        this.archived = true;
+    }
+
     public void cancel() {
         if ("completed".equals(status) || "cancelled".equals(status))
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Booking cannot be cancelled");

@@ -55,7 +55,8 @@ public class BookingResourceFromEntityAssembler {
                 entity.getEstimatedDistance(),
                 entity.getEstimatedDuration(),
                 entity.getEstimatedCost(),
-                entity.destinationChangeFeesOrZero()
+                entity.destinationChangeFeesOrZero(),
+                entity.isArchived()
         );
     }
 }

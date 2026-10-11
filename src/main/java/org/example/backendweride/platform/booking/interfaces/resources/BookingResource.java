@@ -37,7 +37,8 @@ public record BookingResource(
         Double estimatedDistance,
         Integer estimatedDuration,
         Double estimatedCost,
-        Double destinationChangeFees
+        Double destinationChangeFees,
+        boolean archived
 ) {
     public record RatingResource(Integer score, String comment, java.util.List<String> tags) {}
 }
