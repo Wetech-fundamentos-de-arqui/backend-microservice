@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # PEM "BEGIN PUBLIC KEY" of iam; the gateway never has the private key
+          public-key-location: ${JWT_PUBLIC_KEY_LOCATION}
+          issuer-uri: weride-iam
+          audiences: weride-api
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # a hung service ends in 504 instead of keeping the request open
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 10s
+          routes:
+            - id: iam
+              uri: ${IAM_BASE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/authentication/**,/api/v1/accounts/**
+            - id: profile
+              uri: ${PROFILE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/profiles/**
+            - id: garage
+              uri: ${GARAGE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/vehicles/**,/api/v1/favorites/**
+            - id: location
+              uri: ${LOCATION_BASE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/location/**
+            - id: booking
+              uri: ${BOOKING_BASE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/bookings/**,/api/v1/bookingDrafts/**,/api/v1/payments/**
+            - id: ride
+              uri: ${RIDE_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/trips/**,/api/v1/travel-history/**,/api/v1/unlockRequests/**,/api/v1/problem-reports/**
+            - id: plan
+              uri: ${PLAN_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/plans/**
+            - id: notification
+              uri: ${NOTIFICATION_BASE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/v1/notifications/**
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+weride:
+  cors:
+    # same origins as the monolith, plus the local service ports (8080-8088) for their Swagger UIs
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,https://weride.duckdns.org,https://frontend-we-ride-lake.vercel.app,https://weride-frontend.vercel.app,http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:8083,http://localhost:8084,http://localhost:8085,http://localhost:8086,http://localhost:8087,http://localhost:8088}
+  internal:
+    service-name: api-gateway
+    targets:
+      iam:
+        secret: ${INTERNAL_SECRET_API_GATEWAY_TO_IAM}

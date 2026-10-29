@@ -36,3 +36,6 @@ build/
 .gsd/
 
 .env
+
+### WeRide local secrets ###
+secrets/

@@ -18,14 +18,14 @@
     <modules>
         <module>weride-shared</module>
         <module>api-gateway</module>
-        <module>iam-service</module>
-        <module>profile-service</module>
-        <module>garage-service</module>
-        <module>location-service</module>
-        <module>booking-service</module>
-        <module>ride-service</module>
-        <module>plan-service</module>
-        <module>notification-service</module>
+        <module>services/iam-service</module>
+        <module>services/profile-service</module>
+        <module>services/garage-service</module>
+        <module>services/location-service</module>
+        <module>services/booking-service</module>
+        <module>services/ride-service</module>
+        <module>services/plan-service</module>
+        <module>services/notification-service</module>
     </modules>
 
     <properties>
