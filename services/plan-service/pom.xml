@@ -6,7 +6,8 @@
         <groupId>org.example</groupId>
         <artifactId>weride-backend</artifactId>
         <version>2.0.0</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
-    <artifactId>location-service</artifactId>
+    <artifactId>plan-service</artifactId>
 
 </project>
