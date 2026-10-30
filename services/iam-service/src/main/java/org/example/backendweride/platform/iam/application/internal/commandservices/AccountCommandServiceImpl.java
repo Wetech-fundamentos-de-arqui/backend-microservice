@@ -28,6 +28,12 @@ public class AccountCommandServiceImpl implements AccountCommandService {
 
     @Override
     public Optional<Account> handle(SignUpCommand command) {
+        // Check lengths here: Bean Validation's default warning includes rejected field values.
+        if (command.username() == null || command.username().isBlank() || command.username().length() > 254
+                || command.password() == null || command.password().isBlank()
+                || command.password().length() < 8 || command.password().length() > 64
+                || command.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_CREDENTIALS_FORMAT");
         if(accountRepository.existsByUserName(command.username()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
 
@@ -39,6 +45,10 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Optional<ImmutablePair<Account, String>> handle(SignInCommand command) {
+        if (command.username() == null || command.username().isBlank() || command.username().length() > 254
+                || command.password() == null || command.password().isBlank() || command.password().length() > 72
+                || command.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_CREDENTIALS_FORMAT");
         var account = accountRepository.findLockedByUserName(command.username())
                 .filter(a -> a.isActive() && hashingService.matches(command.password(), a.getPassword()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));

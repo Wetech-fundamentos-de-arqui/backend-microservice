@@ -1,290 +1,89 @@
-# WeRide — backend de microservicios
+# WeRide — microservicios locales
 
-Backend de WeRide (Java 24, Spring Boot 3.5.7, Maven, MySQL 8). Evoluciona el monolito original hacia servicios desplegables por separado. Plan completo: [docs/architecture/Plan-Microservicios-WeRide.md](docs/architecture/Plan-Microservicios-WeRide.md). Decisiones: [docs/architecture/decisions](docs/architecture/decisions).
+Java 24, Spring Boot 3.5.7, Spring Cloud Gateway, Maven y MySQL 8.4. Ocho servicios poseen sus datos y se comunican por REST interno; Angular entra por el Gateway. `src/` conserva el monolito como referencia y no participa del reactor Maven.
 
-## Estado de la migración
+## Inicio
 
-| Módulo | Estado |
-|---|---|
-| `weride-shared` | Hecho. Librería técnica: seguridad (JWT RS256, identidad entre servicios), naming strategy de JPA, OpenAPI y `AuditableAbstractAggregateRoot`. Sin dominio. |
-| `api-gateway` | Hecho. Rutas, CORS, verificación del JWT y comprobación de sesión contra IAM. |
-| `services/iam-service` | Hecho. Cuentas, sign-in/sign-up, sesiones, JWT y baja de cuenta (parte de IAM del ADR-008). |
-| `services/profile-service`, `garage-service`, `location-service`, `booking-service`, `ride-service`, `plan-service`, `notification-service` | **Pendientes.** El módulo existe (solo `pom.xml`), sin código. |
-| `src/` (raíz) | Código del monolito original. Es la referencia de comportamiento; **ya no compila solo** porque sus clases compartidas se movieron a `weride-shared`. No forma parte del build (no es un módulo del `pom.xml` raíz). |
+Requisitos: Docker Desktop con motor Linux, Compose v2 y Node.js 22 para generar las credenciales locales.
 
-## Estructura
+Solo la primera vez, genera las credenciales locales:
 
-```
-pom.xml                 POM padre (weride-backend:2.0.0), agrega los módulos
-weride-shared/          librería compartida (jar, no ejecutable)
-api-gateway/            gateway (Spring Cloud Gateway WebFlux)
-services/<x>-service/   un servicio de negocio por carpeta
-contracts/openapi/      contratos OpenAPI (por completar)
-contracts/events/       contratos de eventos (por completar)
-docs/architecture/      plan y ADRs (decisions/)
-docs/runbooks/          runbooks (por completar)
-docker/mysql/           script que crea esquemas y usuarios
-docker-compose.yml, Dockerfile, .env.example
-src/                    monolito original (referencia)
+```powershell
+node scripts/init-local.mjs
 ```
 
-## Servicios, dueños y puertos (ADR-010)
+El inicializador crea `.env` con secretos aleatorios y un par RSA en `secrets/`; conserva los valores existentes y no imprime secretos. Esos archivos no se versionan. Solo IAM recibe la clave privada.
 
-| Servicio | Puerto | Dueño | Esquema MySQL |
-|---|---|---|---|
-| api-gateway | 8080 | Samuel | — |
-| iam-service | 8081 | Samuel | `weride_iam` |
-| profile-service | 8082 | Angel | `weride_profile` |
-| garage-service | 8083 | Angel | `weride_garage` |
-| location-service | 8084 | Jareth | `weride_location` |
-| booking-service | 8085 | Jareth | `weride_booking` |
-| ride-service | 8086 | Wanderer | `weride_ride` |
-| plan-service | 8087 | Asto | `weride_plan` |
-| notification-service | 8088 | Asto | `weride_notification` |
+Levanta todo de una vez (MySQL, los ocho servicios, el Gateway y el frontend vecino `../frontend-main/frontend-main`). Compose respeta el orden de arranque, así que no hace falta iniciar cada servicio por separado:
 
-MySQL: host `3307` → contenedor `3306`. Un esquema y un usuario por servicio (mismo nombre que el esquema), con permisos solo sobre su esquema.
-
-## Requisitos
-
-- Java 24 o superior y Maven 3.9.
-- Docker con Compose v2.
-- `openssl` para generar las claves JWT locales.
-
-## Compilar y probar
-
-```bash
-mvn verify                                   # todo el reactor
-mvn -pl services/iam-service -am verify      # un módulo y lo que necesita (weride-shared)
-mvn -pl api-gateway -am verify
+```powershell
+docker compose --profile web up --build -d
 ```
 
-## Claves JWT locales (fuera del repo)
+La primera compilación tarda varios minutos. Después, omite `--build` si no cambiaste el código. Comandos habituales:
 
-IAM firma con la clave privada; el gateway y los servicios verifican con la pública (ADR-004). Los PEM viven en `secrets/`, que está en `.gitignore`.
-
-```bash
-mkdir -p secrets
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt-private.pem   # PKCS#8: "BEGIN PRIVATE KEY"
-openssl rsa -in secrets/jwt-private.pem -pubout -out secrets/jwt-public.pem                 # "BEGIN PUBLIC KEY"
+```powershell
+docker compose --profile web ps          # estado; espera a que todos estén healthy
+docker compose logs -f booking-service   # logs en vivo de un servicio
+docker compose --profile web down        # apaga todo y conserva los datos
 ```
 
-## Levantar con Docker Compose
+Sin `--profile web` no se incluye el frontend. Si está en otra carpeta, define `FRONTEND_PATH` en `.env` con su ruta; debe contener su `Dockerfile` y `nginx.conf`. `docker compose down -v` borra el volumen de MySQL y con él todos los datos locales.
 
-```bash
-cp .env.example .env        # reemplaza cada change-me; .env no se versiona
-# (las claves de la sección anterior deben existir en ./secrets)
-docker compose up --build -d
-docker compose ps           # mysql, iam-service y api-gateway deben quedar "healthy"
-docker compose logs -f iam-service
-docker compose down         # añade -v para borrar también la base de datos
+Abre [WeRide local](http://localhost:4200). El Gateway está en [localhost:8080](http://localhost:8080). La cuenta demo local es `demo@weride.test` / `Demo1234!`; también puedes registrarte. Las escrituras de catálogo (vehículos, estaciones y planes) requieren el rol `ADMIN`: en local, `admin@weride.test` / `Admin1234!`. El registro abre el perfil con un GET autenticado antes de actualizar su nombre (ADR-011).
+
+| Servicio | Puerto | Datos y responsabilidad |
+|---|---:|---|
+| api-gateway | 8080 | Rutas, CORS, JWT y estado de sesión |
+| iam-service | 8081 | Cuentas, credenciales, sesiones y baja |
+| profile-service | 8082 | Perfil y preferencias; creación perezosa |
+| garage-service | 8083 | Flota, estado y favoritos |
+| location-service | 8084 | Estaciones, coordenadas y horarios |
+| booking-service | 8085 | Reservas, disponibilidad, borradores, cotización, rating y pagos simulados |
+| ride-service | 8086 | Sesión, ruta, desbloqueos, historial y reportes |
+| plan-service | 8087 | Catálogo y beneficios |
+| notification-service | 8088 | Bandeja, lectura y recepción idempotente de eventos |
+| MySQL | 3307 → 3306 | Esquema y usuario `weride_<servicio>` por servicio |
+| frontend (perfil `web`) | 4200 | Angular/Nginx; `/api/` se envía al Gateway |
+
+Los puertos publicados se enlazan a `127.0.0.1`. Cada servicio expone `/actuator/health`, `/swagger-ui.html` y `/v3/api-docs` en su puerto. El Gateway bloquea `/internal/**`.
+
+**Swagger general:** [localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) reúne todos los servicios; elige uno en el selector superior. Inicia sesión con `POST /api/v1/authentication/sign-in` en `iam`, pega el `token` en **Authorize** y prueba cualquier endpoint a través del Gateway. Solo se publica con `WERIDE_SWAGGER_ENABLED=true`, que Compose activa para local; por defecto está apagado. Las rutas `/internal/**` aparecen en la documentación, pero el Gateway responde 403.
+
+## Contratos y persistencia
+
+Consultar el [plan](docs/architecture/Plan-Microservicios-WeRide.md), los [ADR](docs/architecture/decisions), las [extensiones locales](docs/architecture/decisions/012-integracion-local.md) y el [índice de contratos](contracts/README.md).
+
+- Se preservan las rutas de Angular, incluyendo `location`, `bookingDrafts` y `unlockRequests`. `PUT /bookings/{id}/start` conserva compatibilidad; POST es un alias.
+- Booking coordina inicio, finalización y cancelación. Ride persiste una sesión única por `bookingId`. Los estados `starting`, `completing` y `cancelling` quedan recuperables tras timeouts. Booking conserva una proyección del resultado para sus respuestas e historial. La reubicación del vehículo se reintenta si Garage/Location estaban caídos.
+- La reserva se serializa por vehículo, incluyendo la creación inicial de su agenda. `Idempotency-Key`, asociado al usuario, devuelve la misma reserva; otro payload con la misma clave produce 409. Una reserva sin iniciar caduca 15 minutos después del inicio programado o de reservarla si era inmediata.
+- Los borradores duran 24 horas y no reservan vehículos. El desbloqueo manual/QR es simulado y no inicia automáticamente el viaje. Los pagos son simulados y no almacenan tarjetas. Plan es catálogo, sin cobros recurrentes.
+- Los reportes conservan progreso antes de coordinar mantenimiento y exoneración del primer minuto. Una dependencia caída deja el reporte pendiente para reintento. No hay transacciones distribuidas.
+- Flyway posee cada esquema y Hibernate usa `ddl-auto=validate`. No hay entidades, repositorios, SQL ni claves foráneas entre esquemas. Los IDs remotos son strings opacos.
+
+## Seguridad y notificaciones
+
+IAM firma RS256: `sub` es el ID estable, `preferred_username` el nombre de acceso y `role` el rol (`USER` o `ADMIN`). Los servicios verifican JWT y propiedad. El Gateway consulta el `sid`, cachea hasta 30 segundos y responde 503 si IAM no puede comprobarlo. La revocación puede tardar ese TTL en observarse.
+
+Las llamadas `/internal/v1/**` requieren `X-Service-Name` y `X-Internal-Token`, con un secreto distinto por par llamante/receptor y autorización por operación. Los clientes internos tienen timeouts de 2 segundos. `X-Correlation-Id` se propaga sin registrar credenciales.
+
+Booking/Ride guardan eventos en su outbox dentro de la transacción local. Reintentan desde 2 segundos hasta 5 minutos, con máximo 10 intentos. Notification deduplica `(sourceService,eventId)` y detecta cambios de payload. La identidad `ops` puede consultar `/internal/v1/outbox/failed` y reenviar con `POST /internal/v1/outbox/{eventId}/replay`. Véase el [schema](contracts/events/notification-event.v1.schema.json).
+
+La baja valida contraseña, consulta/bloquea reservas, revoca sesiones y conserva un workflow en IAM. Los otros servicios ejecutan su limpieza idempotente con tombstone local; nuevas mutaciones se rechazan. Booking anonimiza historial. IAM reintenta pendientes cada 60 segundos y elimina su cuenta cuando todos confirman.
+
+## Desarrollo y comprobaciones
+
+Fuera de Docker: JDK 24 o superior y Maven 3.9.
+
+```powershell
+mvn verify
+mvn -pl services/booking-service -am verify
+python scripts/verify_local.py --resilience
 ```
 
-Por defecto levanta `mysql`, `iam-service` y `api-gateway`. Los demás servicios están declarados con un `profile` (p. ej. `docker compose --profile booking up`) y no arrancan hasta que su módulo tenga código; al implementar el tuyo, borra la línea `profiles:` de tu servicio en `docker-compose.yml` y agrega los `INTERNAL_SECRET_*` que necesite.
+El POM inicia Mockito como agente para evitar depender del autoanexado del JDK. Las regresiones trasladadas están en los módulos; `src/test` permanece como referencia del monolito.
 
-### Probar con Swagger
+En el frontend vecino: `npm ci`, `npm run build`, `npm test -- --watch=false --browsers=ChromeHeadless` y `npm start`. Puedes configurar `CHROME_BIN` para un Chromium instalado. El proxy de desarrollo y Nginx usan `/api/v1` relativo hacia el Gateway.
 
-Cada servicio publica su Swagger UI en su propio puerto. El gateway **no** lo enruta.
+El verificador HTTP usa datos de prueba locales y registra sus resultados en `docs/runbooks/local-verification.json`. `--resilience` detiene/restaura Ride y Notification y reinicia Booking y Gateway para comprobar persistencia del outbox y recuperación del proxy. Con `--base http://localhost:4200/api/v1` comprueba los flujos a través del proxy del frontend. El [runbook](docs/runbooks/local-validation.md) registra la evidencia realmente obtenida.
 
-1. Abre IAM: <http://localhost:8081/swagger-ui.html> (JSON del contrato en `/v3/api-docs`).
-2. `POST /api/v1/authentication/sign-in` → *Try it out* con la cuenta demo `{"username":"demo@weride.test","password":"Demo1234!"}`. Copia el valor de `token` de la respuesta.
-3. Pulsa **Authorize** (arriba a la derecha), pega el token (solo el token, sin `Bearer `) y confirma.
-4. Prueba los endpoints protegidos: `GET /api/v1/accounts/{accountId}` (usa el `id` de la respuesta de sign-in), `POST /api/v1/accounts/me/sessions/logout`, etc.
-5. Para comprobar el gateway usa `curl` contra `http://localhost:8080` (mismas rutas `/api/v1/...`, con `Authorization: Bearer <token>`).
-
-Las rutas `/internal/v1/**` exigen `X-Service-Name` y `X-Internal-Token`; Swagger no las envía, pruébalas con `curl`.
-
-La cuenta `demo@weride.test` / `Demo1234!` la crea la migración `V2__seed_demo_account.sql` de IAM y es **solo para uso local**.
-
-## Gateway
-
-Mapa de rutas (variables de entorno con default `http://localhost:<puerto>`; en Compose apuntan al nombre del servicio):
-
-| Rutas | Variable | Servicio |
-|---|---|---|
-| `/api/v1/authentication/**`, `/api/v1/accounts/**` | `IAM_BASE_URL` | iam |
-| `/api/v1/profiles/**` | `PROFILE_BASE_URL` | profile |
-| `/api/v1/vehicles/**`, `/api/v1/favorites/**` | `GARAGE_BASE_URL` | garage |
-| `/api/v1/location/**` | `LOCATION_BASE_URL` | location |
-| `/api/v1/bookings/**`, `/api/v1/bookingDrafts/**`, `/api/v1/payments/**` | `BOOKING_BASE_URL` | booking |
-| `/api/v1/trips/**`, `/api/v1/travel-history/**`, `/api/v1/unlockRequests/**`, `/api/v1/problem-reports/**` | `RIDE_BASE_URL` | ride |
-| `/api/v1/plans/**` | `PLAN_BASE_URL` | plan |
-| `/api/v1/notifications/**` | `NOTIFICATION_BASE_URL` | notification |
-
-- **Públicas:** `/api/v1/authentication/**` y `/actuator/health`. Todo lo demás exige un JWT válido.
-- **`/internal/**` está bloqueado:** nunca se enruta.
-- **CORS** se resuelve solo en el gateway (los servicios lo tienen desactivado). Lista en `CORS_ALLOWED_ORIGINS`, separada por comas y sin `/` final; el valor por defecto está en `api-gateway/src/main/resources/application.yml` y en `.env.example`.
-- **JWT:** el gateway verifica firma RS256, `iss=weride-iam` y `aud=weride-api` con la clave pública. Luego comprueba que el `sid` siga activo preguntando a IAM (`GET /internal/v1/sessions/{sid}`) y cachea cada respuesta hasta 30 s.
-- **Códigos que produce el gateway:**
-
-| Código | Cuándo |
-|---|---|
-| 401 | Sin token, token inválido (firma, `iss`, `aud`, expirado) o sesión inactiva (revocada, expirada, cuenta `DELETION_PENDING`) |
-| 403 | Cualquier ruta `/internal/**` con token válido |
-| 503 | IAM no responde al comprobar la sesión (falla cerrado) o el servicio destino está caído / no existe |
-| 504 | El servicio destino no responde en 10 s (`response-timeout`; conexión: 2 s) |
-
-## Cómo crear tu servicio
-
-El módulo ya existe en `services/<nombre>-service` (con su `pom.xml`, padre `../../pom.xml`). Toma `services/iam-service` como ejemplo funcional.
-
-### 1. `pom.xml`
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.example</groupId>
-        <artifactId>weride-shared</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-actuator</artifactId>   <!-- /actuator/health para el healthcheck -->
-    </dependency>
-    <dependency>
-        <groupId>org.flywaydb</groupId>
-        <artifactId>flyway-core</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.flywaydb</groupId>
-        <artifactId>flyway-mysql</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.mysql</groupId>
-        <artifactId>mysql-connector-j</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <optional>true</optional>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-test</artifactId>
-        <scope>test</scope>
-    </dependency>
-</dependencies>
-
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-        </plugin>
-    </plugins>
-</build>
-```
-
-`weride-shared` ya trae web, security, data-jpa, validation, springdoc y el resource server OAuth2 (versiones gestionadas por el POM padre). No lleva `spring-boot-maven-plugin` porque es librería.
-
-### 2. Clase principal
-
-Ponla en el paquete `org.example.backendweride` (como `IamServiceApplication`): así el escaneo ya incluye `org.example.backendweride.platform.shared` (configuración de seguridad, OpenAPI, naming strategy).
-
-```java
-package org.example.backendweride;
-
-@SpringBootApplication
-@EnableJpaAuditing   // obligatorio si alguna entidad extiende AuditableAbstractAggregateRoot
-public class BookingServiceApplication {
-    public static void main(String[] args) { SpringApplication.run(BookingServiceApplication.class, args); }
-}
-```
-
-Si prefieres otro paquete, añade `scanBasePackages = {"<tu paquete>", "org.example.backendweride.platform.shared"}`.
-
-`AuditableAbstractAggregateRoot` (`id` Long `IDENTITY`, `createdAt`, `updatedAt`) vive en `weride-shared`; los dueños que la usen no deben copiarla.
-
-### 3. `application.properties` mínimo
-
-```properties
-spring.application.name=booking-service
-server.port=8085
-documentation.application.description=WeRide Booking
-documentation.application.version=1.0        # obligatorias: las lee OpenApiConfiguration
-
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.datasource.url=${SPRING_DATASOURCE_URL}
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-spring.flyway.enabled=true
-spring.jpa.hibernate.ddl-auto=validate
-spring.jpa.open-in-view=false
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
-spring.jpa.hibernate.naming.physical-strategy=org.example.backendweride.platform.shared.infraestructure.persistence.jpa.strategy.SnakeCasePhysicalNamingStrategy
-
-# Verificación del JWT (RS256, solo clave pública)
-spring.security.oauth2.resourceserver.jwt.public-key-location=${JWT_PUBLIC_KEY_LOCATION}
-spring.security.oauth2.resourceserver.jwt.issuer-uri=weride-iam
-spring.security.oauth2.resourceserver.jwt.audiences=weride-api
-
-# Identidad entre servicios (ver sección siguiente)
-weride.internal.service-name=booking
-weride.internal.callers.iam=${INTERNAL_SECRET_IAM_TO_BOOKING}
-weride.internal.callers.ride=${INTERNAL_SECRET_RIDE_TO_BOOKING}
-
-management.endpoints.web.exposure.include=health
-```
-
-Notas: el paquete de la naming strategy conserva el typo `infraestructure`. La strategy pasa los nombres a `snake_case` y **pluraliza** los tablas (entidad `Account` → tabla `accounts`); las migraciones Flyway deben usar esos nombres, y `ddl-auto=validate` hará fallar el arranque si no coinciden. Las migraciones van en `src/main/resources/db/migration/V1__...sql`.
-
-### 4. Usuario autenticado
-
-`weride-shared` valida el JWT y expone `AuthenticatedUser(String id, String username)` (`id` = claim `sub`, `username` = `preferred_username`; los IDs externos son strings opacos, ADR-003). En un controlador:
-
-```java
-CurrentUser.id(authentication)                         // String; 401 si no hay AuthenticatedUser
-CurrentUser.requireSelf(authentication, ownerId)       // 403 si ownerId (String) no es el del token
-CurrentUser.requireUsername(authentication, username)  // 403 si no coincide con preferred_username
-authentication.getName()                               // el username
-```
-
-Cada servicio autoriza propiedad por su cuenta; el gateway no sustituye esa validación. Para desactivar la cadena de seguridad compartida (solo lo hace IAM, que tiene rutas públicas propias) existe `weride.security.shared=false`.
-
-### 5. Rutas internas y llamadas entre servicios
-
-- Los endpoints para otros servicios van bajo `/internal/v1/**`. El `InternalTokenFilter` de `weride-shared` los protege: exige `X-Service-Name` + `X-Internal-Token` y compara el secreto con `weride.internal.callers.<llamante>`. Falta de headers, llamante desconocido o secreto distinto → 401. Si es válido, el principal es `service:<llamante>` (no un `AuthenticatedUser`).
-- Hay un secreto por par llamante→receptor (nada de secreto global), definido en `.env.example` como `INTERNAL_SECRET_<LLAMANTE>_TO_<RECEPTOR>`. Es el mismo valor en ambos extremos.
-- Para llamar a otro servicio, inyecta el `RestClient.Builder` de Spring Boot: `weride-shared` ya le agrega timeouts de 2 s y `X-Service-Name` (desde `weride.internal.service-name`). Tú pones la URL y el secreto del destino:
-
-```properties
-weride.internal.targets.garage.url=${GARAGE_BASE_URL}
-weride.internal.targets.garage.secret=${INTERNAL_SECRET_BOOKING_TO_GARAGE}
-```
-
-```java
-@Bean
-RestClient garageClient(RestClient.Builder builder,
-                        @Value("${weride.internal.targets.garage.url}") String url,
-                        @Value("${weride.internal.targets.garage.secret}") String secret) {
-    return builder.baseUrl(url).defaultHeader("X-Internal-Token", secret).build();
-}
-```
-
-Nunca reenvíes el token del usuario como identidad de servicio. Reintenta solo operaciones idempotentes.
-
-### 6. Datos
-
-Esquema propio `weride_<servicio>` y usuario propio (los crea `docker/mysql/init-schemas.sh`). Sin claves foráneas ni lecturas a esquemas de otros servicios: entre contextos solo viajan IDs opacos y contratos explícitos. Datos demo por seeders/migraciones del propio servicio.
-
-## Contratos pendientes para otros dueños
-
-- **Perfil perezoso (ADR-011):** IAM no llama a Profile al registrar. Profile crea el perfil vacío en el primer `GET` autenticado, con `sub` como `userId`, de forma idempotente.
-- **Baja de cuenta (ADR-008):** la parte de IAM está implementada: `POST /api/v1/accounts/me/delete` (valida contraseña) → 202 `{"workflowId"}`. Si Booking está configurado, IAM primero hace `POST /internal/v1/users/{userId}/deletion-lock`: 409 → responde 409 `ACTIVE_BOOKINGS` sin cambios; error o timeout → libera con `DELETE .../deletion-lock` y responde 503. Luego marca la cuenta `DELETION_PENDING`, revoca sesiones y persiste el workflow. Un job cada 60 s llama `DELETE /internal/v1/users/{userId}/personal-data/{workflowId}` a Profile, Garage, Booking, Ride y Notification; solo llama a los que tengan `weride.internal.targets.<x>.url` configurado y deja el paso `PENDING` si no. Termina `DELETED` (y IAM borra solo lo suyo) cuando todos confirman; un 409 tardío de Booking aborta el workflow y reactiva la cuenta. **Cada dueño implementa** el `deletion-lock` (Booking) y el `personal-data` idempotente con tombstone local (Profile, Garage, Booking, Ride, Notification), y cuando existan activa su URL y secreto en la config de IAM (`*_BASE_URL`, `INTERNAL_SECRET_IAM_TO_<X>`; ver el `docker-compose.yml`).
-- **Outbox hacia Notification (ADR-005):** Booking y Ride guardan los eventos en una outbox local dentro de la transacción y los publican por `PUT /internal/v1/notification-events/{sourceService}/{eventId}`; Notification deduplica por `(sourceService, eventId)`.
-- Contratos internos completos: sección "Contratos internos obligatorios" del [plan](docs/architecture/Plan-Microservicios-WeRide.md).
-
-## Convenciones (plan, sección 4.3)
-
-| Elemento | Convención |
-|---|---|
-| Carpetas / artefactos Maven | `booking-service`, `api-gateway`; kebab-case |
-| Paquetes Java | `org.example.backendweride.platform.<contexto>` |
-| Rutas | `/api/v1`, plural, minúsculas, kebab-case; las rutas actuales del frontend no se renombran |
-| Rutas internas | `/internal/v1/**` |
-| Esquemas / tablas | `weride_<servicio>`; tablas y columnas en `snake_case`, cambios por migración Flyway |
-| Variables | `SPRING_DATASOURCE_URL`, `IAM_BASE_URL`, etc.; secretos siempre externos |
-| Ramas | `feature/{servicio}/{alcance}`, `fix/{servicio}/{alcance}`, `docs/{alcance}` |
-| Commits | Conventional Commits: `feat(booking): ...`, `fix(iam): ...`, `docs(architecture): ...` |
-| Eventos | `[contexto].[hecho].v1` en pasado: `ride.started.v1` |
-
-Flujo Git y reglas de PR: sección 5.2 del plan. Los cambios en `weride-shared` son un contrato común: avisa a los demás dueños antes de modificarlo.

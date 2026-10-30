@@ -34,10 +34,13 @@ import java.util.List;
 @Configuration
 @EnableWebFluxSecurity
 public class GatewaySecurityConfig {
+    private static final String[] SWAGGER_PATHS =
+            {"/swagger-ui.html", "/swagger-ui/**", "/webjars/**", "/v3/api-docs/**", "/api-docs/**"};
 
     @Bean
     SecurityWebFilterChain filterChain(ServerHttpSecurity http, SessionActivityFilter sessionFilter,
-                                       CorsConfigurationSource cors) {
+                                       CorsConfigurationSource cors,
+                                       @Value("${WERIDE_SWAGGER_ENABLED:false}") boolean swaggerEnabled) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(c -> c.configurationSource(cors))
@@ -45,6 +48,7 @@ public class GatewaySecurityConfig {
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
                         .pathMatchers("/internal/**").denyAll()
                         .pathMatchers("/api/v1/authentication/**", "/actuator/health").permitAll()
+                        .pathMatchers(swaggerEnabled ? SWAGGER_PATHS : new String[] {"/api/v1/authentication/**"}).permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(o -> o
                         // a stale token on the public sign-in/sign-up must not turn into a 401

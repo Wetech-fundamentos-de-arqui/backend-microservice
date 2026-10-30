@@ -39,3 +39,7 @@ build/
 
 ### WeRide local secrets ###
 secrets/
+
+### Local Python verification helpers ###
+__pycache__/
+*.py[cod]

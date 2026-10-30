@@ -51,7 +51,7 @@ public class IamAuthController {
             @ApiResponse(responseCode = "200", description = "Successfully authenticated"),
             @ApiResponse(responseCode = "401", description = "Invalid username or password")
     })
-    public ResponseEntity<AuthenticatedAccountResource> signIn(@RequestBody SignInResource signInResource) {
+    public ResponseEntity<AuthenticatedAccountResource> signIn(@jakarta.validation.Valid @RequestBody SignInResource signInResource) {
         var signInCommand = SignInCommandFromResourceAssembler.toCommandFromResource(signInResource);
         var authenticatedAccountResult = accountCommandService.handle(signInCommand);
 
@@ -73,7 +73,7 @@ public class IamAuthController {
             @ApiResponse(responseCode = "201", description = "Account created successfully"),
             @ApiResponse(responseCode = "400", description = "Account creation failed, for example the username already exists or the data is invalid")
     })
-    public ResponseEntity<AccountResource> signUp(@RequestBody SignUpResource signUpResource) {
+    public ResponseEntity<AccountResource> signUp(@jakarta.validation.Valid @RequestBody SignUpResource signUpResource) {
         var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);
         var account = accountCommandService.handle(signUpCommand);
 

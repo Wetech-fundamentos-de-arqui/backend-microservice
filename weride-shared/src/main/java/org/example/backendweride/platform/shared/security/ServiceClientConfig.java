@@ -20,6 +20,14 @@ public class ServiceClientConfig {
         factory.setReadTimeout(2000);
         return builder -> builder
                 .requestFactory(factory)
-                .defaultHeader("X-Service-Name", serviceName);
+                .defaultHeader("X-Service-Name", serviceName)
+                .requestInterceptor((request, body, execution) -> {
+                    if (!request.getHeaders().containsKey("X-Correlation-Id")) {
+                        String id = org.slf4j.MDC.get("correlationId");
+                        request.getHeaders().set("X-Correlation-Id",
+                                id == null ? java.util.UUID.randomUUID().toString() : id);
+                    }
+                    return execution.execute(request, body);
+                });
     }
 }

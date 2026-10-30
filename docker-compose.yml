@@ -1,22 +1,22 @@
-# Local environment (ADR-010). Ports: gateway 8080, iam 8081 ... notification 8088; MySQL on host 3307 -> container 3306.
-#
-#   docker compose up --build            -> mysql + api-gateway + iam-service
-#   docker compose --profile booking up  -> also booking-service (once the module has code)
-#
-# The other services are declared with a profile so they only start when their module exists:
-# when you implement yours, delete its `profiles:` line and add the INTERNAL_SECRET_* it needs.
-
-x-spring-service: &spring-service
+# Local reproducible environment. All published ports bind only to localhost.
+x-java-service: &java-service
   restart: unless-stopped
   networks: [app-net]
+  mem_limit: 512m
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://localhost:$$SERVER_PORT/actuator/health | grep -q UP"]
+    interval: 10s
+    timeout: 5s
+    retries: 24
+    start_period: 60s
 
 services:
   mysql:
-    image: mysql:8
-    container_name: weride-mysql
+    image: mysql:8.4
     restart: unless-stopped
+    mem_limit: 768m
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?define MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
       DB_PASSWORD_IAM: ${DB_PASSWORD_IAM:?}
       DB_PASSWORD_PROFILE: ${DB_PASSWORD_PROFILE:?}
       DB_PASSWORD_GARAGE: ${DB_PASSWORD_GARAGE:?}
@@ -25,8 +25,7 @@ services:
       DB_PASSWORD_RIDE: ${DB_PASSWORD_RIDE:?}
       DB_PASSWORD_PLAN: ${DB_PASSWORD_PLAN:?}
       DB_PASSWORD_NOTIFICATION: ${DB_PASSWORD_NOTIFICATION:?}
-    ports:
-      - "3307:3306"
+    ports: ["127.0.0.1:3307:3306"]
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init-schemas.sh:/docker-entrypoint-initdb.d/init-schemas.sh:ro
@@ -34,22 +33,201 @@ services:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 40
     networks: [app-net]
 
-  api-gateway:
-    <<: *spring-service
+  iam-service:
+    <<: *java-service
     build:
       context: .
-      args:
-        MODULE: api-gateway
-    container_name: weride-api-gateway
+      args: {MODULE: services/iam-service}
     depends_on:
-      iam-service:
-        condition: service_healthy
+      mysql: {condition: service_healthy}
     environment:
+      SERVER_PORT: 8081
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_iam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_iam
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_IAM:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      JWT_PRIVATE_KEY_LOCATION: file:/run/secrets/jwt_private
+      INTERNAL_SECRET_API_GATEWAY_TO_IAM: ${INTERNAL_SECRET_API_GATEWAY_TO_IAM:?}
+      BOOKING_BASE_URL: http://booking-service:8085
+      INTERNAL_SECRET_IAM_TO_BOOKING: ${INTERNAL_SECRET_IAM_TO_BOOKING:?}
+      PROFILE_BASE_URL: http://profile-service:8082
+      INTERNAL_SECRET_IAM_TO_PROFILE: ${INTERNAL_SECRET_IAM_TO_PROFILE:?}
+      GARAGE_BASE_URL: http://garage-service:8083
+      INTERNAL_SECRET_IAM_TO_GARAGE: ${INTERNAL_SECRET_IAM_TO_GARAGE:?}
+      RIDE_BASE_URL: http://ride-service:8086
+      INTERNAL_SECRET_IAM_TO_RIDE: ${INTERNAL_SECRET_IAM_TO_RIDE:?}
+      NOTIFICATION_BASE_URL: http://notification-service:8088
+      INTERNAL_SECRET_IAM_TO_NOTIFICATION: ${INTERNAL_SECRET_IAM_TO_NOTIFICATION:?}
+    secrets: [jwt_public, jwt_private]
+    ports: ["127.0.0.1:8081:8081"]
+
+  profile-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/profile-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8082
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_profile?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_profile
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROFILE:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_IAM_TO_PROFILE: ${INTERNAL_SECRET_IAM_TO_PROFILE:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8082:8082"]
+
+  garage-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/garage-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8083
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_garage?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_garage
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_GARAGE:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_IAM_TO_GARAGE: ${INTERNAL_SECRET_IAM_TO_GARAGE:?}
+      INTERNAL_SECRET_BOOKING_TO_GARAGE: ${INTERNAL_SECRET_BOOKING_TO_GARAGE:?}
+      INTERNAL_SECRET_RIDE_TO_GARAGE: ${INTERNAL_SECRET_RIDE_TO_GARAGE:?}
+      BOOKING_BASE_URL: http://booking-service:8085
+      INTERNAL_SECRET_GARAGE_TO_BOOKING: ${INTERNAL_SECRET_GARAGE_TO_BOOKING:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8083:8083"]
+
+  location-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/location-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8084
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_location?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_location
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_LOCATION:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_BOOKING_TO_LOCATION: ${INTERNAL_SECRET_BOOKING_TO_LOCATION:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8084:8084"]
+
+  booking-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/booking-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8085
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_booking?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_booking
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_BOOKING:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_IAM_TO_BOOKING: ${INTERNAL_SECRET_IAM_TO_BOOKING:?}
+      INTERNAL_SECRET_RIDE_TO_BOOKING: ${INTERNAL_SECRET_RIDE_TO_BOOKING:?}
+      INTERNAL_SECRET_GARAGE_TO_BOOKING: ${INTERNAL_SECRET_GARAGE_TO_BOOKING:?}
+      INTERNAL_SECRET_OPS_TO_BOOKING: ${INTERNAL_SECRET_OPS_TO_BOOKING:?}
+      GARAGE_BASE_URL: http://garage-service:8083
+      INTERNAL_SECRET_BOOKING_TO_GARAGE: ${INTERNAL_SECRET_BOOKING_TO_GARAGE:?}
+      LOCATION_BASE_URL: http://location-service:8084
+      INTERNAL_SECRET_BOOKING_TO_LOCATION: ${INTERNAL_SECRET_BOOKING_TO_LOCATION:?}
+      RIDE_BASE_URL: http://ride-service:8086
+      INTERNAL_SECRET_BOOKING_TO_RIDE: ${INTERNAL_SECRET_BOOKING_TO_RIDE:?}
+      NOTIFICATION_BASE_URL: http://notification-service:8088
+      INTERNAL_SECRET_BOOKING_TO_NOTIFICATION: ${INTERNAL_SECRET_BOOKING_TO_NOTIFICATION:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8085:8085"]
+
+  ride-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/ride-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8086
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_ride?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_ride
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_RIDE:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_IAM_TO_RIDE: ${INTERNAL_SECRET_IAM_TO_RIDE:?}
+      INTERNAL_SECRET_BOOKING_TO_RIDE: ${INTERNAL_SECRET_BOOKING_TO_RIDE:?}
+      INTERNAL_SECRET_OPS_TO_RIDE: ${INTERNAL_SECRET_OPS_TO_RIDE:?}
+      BOOKING_BASE_URL: http://booking-service:8085
+      INTERNAL_SECRET_RIDE_TO_BOOKING: ${INTERNAL_SECRET_RIDE_TO_BOOKING:?}
+      GARAGE_BASE_URL: http://garage-service:8083
+      INTERNAL_SECRET_RIDE_TO_GARAGE: ${INTERNAL_SECRET_RIDE_TO_GARAGE:?}
+      NOTIFICATION_BASE_URL: http://notification-service:8088
+      INTERNAL_SECRET_RIDE_TO_NOTIFICATION: ${INTERNAL_SECRET_RIDE_TO_NOTIFICATION:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8086:8086"]
+
+  plan-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/plan-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8087
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_plan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_plan
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PLAN:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8087:8087"]
+
+  notification-service:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: services/notification-service}
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8088
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: weride_notification
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_NOTIFICATION:?}
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
+      INTERNAL_SECRET_IAM_TO_NOTIFICATION: ${INTERNAL_SECRET_IAM_TO_NOTIFICATION:?}
+      INTERNAL_SECRET_BOOKING_TO_NOTIFICATION: ${INTERNAL_SECRET_BOOKING_TO_NOTIFICATION:?}
+      INTERNAL_SECRET_RIDE_TO_NOTIFICATION: ${INTERNAL_SECRET_RIDE_TO_NOTIFICATION:?}
+    secrets: [jwt_public]
+    ports: ["127.0.0.1:8088:8088"]
+
+  api-gateway:
+    <<: *java-service
+    build:
+      context: .
+      args: {MODULE: api-gateway}
+    depends_on:
+      iam-service: {condition: service_healthy}
+    environment:
+      SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=15
       JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?}
+      WERIDE_SWAGGER_ENABLED: "true"
       INTERNAL_SECRET_API_GATEWAY_TO_IAM: ${INTERNAL_SECRET_API_GATEWAY_TO_IAM:?}
       IAM_BASE_URL: http://iam-service:8081
       PROFILE_BASE_URL: http://profile-service:8082
@@ -60,251 +238,28 @@ services:
       PLAN_BASE_URL: http://plan-service:8087
       NOTIFICATION_BASE_URL: http://notification-service:8088
     secrets: [jwt_public]
-    ports:
-      - "8080:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
+    ports: ["127.0.0.1:8080:8080"]
 
-  iam-service:
-    <<: *spring-service
-    build:
-      context: .
-      args:
-        MODULE: services/iam-service
-    container_name: weride-iam-service
+  frontend:
+    profiles: [web]
+    build: ${FRONTEND_PATH:-../frontend-main/frontend-main}
+    restart: unless-stopped
     depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_iam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_iam
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_IAM:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      JWT_PRIVATE_KEY_LOCATION: file:/run/secrets/jwt_private
-      INTERNAL_SECRET_API_GATEWAY_TO_IAM: ${INTERNAL_SECRET_API_GATEWAY_TO_IAM:?}
-      # Account deletion workflow (ADR-008): a service is called only when its *_BASE_URL is set.
-      # Uncomment each pair when that service exists; until then its step stays PENDING.
-      # BOOKING_BASE_URL: http://booking-service:8085
-      # INTERNAL_SECRET_IAM_TO_BOOKING: ${INTERNAL_SECRET_IAM_TO_BOOKING}
-      # PROFILE_BASE_URL: http://profile-service:8082
-      # INTERNAL_SECRET_IAM_TO_PROFILE: ${INTERNAL_SECRET_IAM_TO_PROFILE}
-      # GARAGE_BASE_URL: http://garage-service:8083
-      # INTERNAL_SECRET_IAM_TO_GARAGE: ${INTERNAL_SECRET_IAM_TO_GARAGE}
-      # RIDE_BASE_URL: http://ride-service:8086
-      # INTERNAL_SECRET_IAM_TO_RIDE: ${INTERNAL_SECRET_IAM_TO_RIDE}
-      # NOTIFICATION_BASE_URL: http://notification-service:8088
-      # INTERNAL_SECRET_IAM_TO_NOTIFICATION: ${INTERNAL_SECRET_IAM_TO_NOTIFICATION}
-    secrets: [jwt_public, jwt_private]
-    ports:
-      - "8081:8081"
+      api-gateway: {condition: service_healthy}
+    ports: ["127.0.0.1:4200:80"]
+    networks: [app-net]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ | grep -q '<app-root'"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  profile-service:
-    <<: *spring-service
-    profiles: ["profile"]
-    build:
-      context: .
-      args:
-        MODULE: services/profile-service
-    container_name: weride-profile-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_profile?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_profile
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROFILE:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8082:8082"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  garage-service:
-    <<: *spring-service
-    profiles: ["garage"]
-    build:
-      context: .
-      args:
-        MODULE: services/garage-service
-    container_name: weride-garage-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_garage?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_garage
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_GARAGE:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8083:8083"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  location-service:
-    <<: *spring-service
-    profiles: ["location"]
-    build:
-      context: .
-      args:
-        MODULE: services/location-service
-    container_name: weride-location-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_location?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_location
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_LOCATION:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8084:8084"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  booking-service:
-    <<: *spring-service
-    profiles: ["booking"]
-    build:
-      context: .
-      args:
-        MODULE: services/booking-service
-    container_name: weride-booking-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_booking?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_booking
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_BOOKING:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8085:8085"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  ride-service:
-    <<: *spring-service
-    profiles: ["ride"]
-    build:
-      context: .
-      args:
-        MODULE: services/ride-service
-    container_name: weride-ride-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_ride?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_ride
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_RIDE:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8086:8086"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  plan-service:
-    <<: *spring-service
-    profiles: ["plan"]
-    build:
-      context: .
-      args:
-        MODULE: services/plan-service
-    container_name: weride-plan-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_plan?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_plan
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PLAN:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8087:8087"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  notification-service:
-    <<: *spring-service
-    profiles: ["notification"]
-    build:
-      context: .
-      args:
-        MODULE: services/notification-service
-    container_name: weride-notification-service
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/weride_notification?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: weride_notification
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_NOTIFICATION:?}
-      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt_public
-      # add the INTERNAL_SECRET_* pairs of this service (see .env.example)
-    secrets: [jwt_public]
-    ports:
-      - "8088:8088"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 10
 
 networks:
   app-net:
-
 volumes:
   mysql_data:
-
 secrets:
   jwt_public:
-    file: ${JWT_PUBLIC_KEY_FILE:?define JWT_PUBLIC_KEY_FILE in .env}
+    file: ${JWT_PUBLIC_KEY_FILE:?}
   jwt_private:
-    file: ${JWT_PRIVATE_KEY_FILE:?define JWT_PRIVATE_KEY_FILE in .env}
+    file: ${JWT_PRIVATE_KEY_FILE:?}

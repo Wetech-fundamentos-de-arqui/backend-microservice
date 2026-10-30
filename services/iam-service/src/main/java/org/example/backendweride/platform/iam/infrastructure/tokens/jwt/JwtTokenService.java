@@ -21,7 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
- * Issues RS256 tokens: sub = account id, preferred_username, sid, iss, aud, iat, exp.
+ * Issues RS256 tokens: sub = account id, preferred_username, role, sid, iss, aud, iat, exp.
  */
 @Service
 public class JwtTokenService implements TokenService {
@@ -52,6 +52,7 @@ public class JwtTokenService implements TokenService {
         var claims = JwtClaimsSet.builder()
                 .subject(String.valueOf(account.getId()))
                 .claim("preferred_username", account.getUserName())
+                .claim("role", account.getRole().name())
                 .claim("sid", session.getId())
                 .issuer(issuer)
                 .audience(audiences)

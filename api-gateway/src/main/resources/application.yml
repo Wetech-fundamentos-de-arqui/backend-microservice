@@ -17,6 +17,9 @@ spring:
           httpclient:
             connect-timeout: 2000
             response-timeout: 10s
+            pool:
+              max-idle-time: 5s
+              max-life-time: 30s
           routes:
             - id: iam
               uri: ${IAM_BASE_URL:http://localhost:8081}
@@ -50,6 +53,80 @@ spring:
               uri: ${NOTIFICATION_BASE_URL:http://localhost:8088}
               predicates:
                 - Path=/api/v1/notifications/**
+            # unified Swagger UI: each service's OpenAPI document, read through the gateway
+            - id: docs-iam
+              uri: ${IAM_BASE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api-docs/iam
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-profile
+              uri: ${PROFILE_BASE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api-docs/profile
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-garage
+              uri: ${GARAGE_BASE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api-docs/garage
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-location
+              uri: ${LOCATION_BASE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api-docs/location
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-booking
+              uri: ${BOOKING_BASE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api-docs/booking
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-ride
+              uri: ${RIDE_BASE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api-docs/ride
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-plan
+              uri: ${PLAN_BASE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api-docs/plan
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-notification
+              uri: ${NOTIFICATION_BASE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api-docs/notification
+              filters:
+                - SetPath=/v3/api-docs
+
+springdoc:
+  # off unless the environment opts in: Compose enables it for local runs
+  api-docs:
+    enabled: ${WERIDE_SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${WERIDE_SWAGGER_ENABLED:false}
+    persist-authorization: true
+    urls:
+      - name: iam
+        url: /api-docs/iam
+      - name: profile
+        url: /api-docs/profile
+      - name: garage
+        url: /api-docs/garage
+      - name: location
+        url: /api-docs/location
+      - name: booking
+        url: /api-docs/booking
+      - name: ride
+        url: /api-docs/ride
+      - name: plan
+        url: /api-docs/plan
+      - name: notification
+        url: /api-docs/notification
 
 server:
   port: 8080

@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -51,7 +52,9 @@ public class JwtSecurityConfig {
     Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
         return jwt -> {
             var user = new AuthenticatedUser(jwt.getSubject(), jwt.getClaimAsString("preferred_username"));
-            return new UsernamePasswordAuthenticationToken(user, jwt, List.of()) {
+            var role = jwt.getClaimAsString("role");
+            var authorities = role == null ? List.<SimpleGrantedAuthority>of() : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            return new UsernamePasswordAuthenticationToken(user, jwt, authorities) {
                 @Override public String getName() { return user.username(); }
             };
         };

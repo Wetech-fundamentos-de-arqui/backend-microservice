@@ -38,6 +38,11 @@ public class Account extends AbstractAggregateRoot<Account> {
     @Column(nullable = false)
     private AccountStatus status = AccountStatus.ACTIVE;
 
+    @Getter
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountRole role = AccountRole.USER;
+
     public Account(String username, String password) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username cannot be null or empty");

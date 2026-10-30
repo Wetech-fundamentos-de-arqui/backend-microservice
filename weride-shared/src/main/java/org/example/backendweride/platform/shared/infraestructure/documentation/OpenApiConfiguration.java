@@ -19,6 +19,8 @@ public class OpenApiConfiguration {
             @Value("${documentation.application.description}") String description,
             @Value("${documentation.application.version}") String version) {
         return new OpenAPI()
+                // relative, so "Try it out" works both on the service port and through the gateway
+                .addServersItem(new io.swagger.v3.oas.models.servers.Server().url("/"))
                 .addSecurityItem(new io.swagger.v3.oas.models.security.SecurityRequirement().addList("bearerAuth"))
                 .info(new Info().title("WeRide API").description(description).version(version))
                 .components(new Components().addSecuritySchemes("bearerAuth",

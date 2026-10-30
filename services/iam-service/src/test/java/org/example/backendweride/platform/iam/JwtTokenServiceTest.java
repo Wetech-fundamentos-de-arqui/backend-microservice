@@ -43,6 +43,7 @@ class JwtTokenServiceTest {
         assertEquals("ana", jwt.getClaimAsString("preferred_username"));
         assertEquals("weride-iam", jwt.getClaimAsString("iss"));
         assertEquals(List.of("weride-api"), jwt.getAudience());
+        assertEquals("USER", jwt.getClaimAsString("role"));
         assertNotNull(jwt.getClaimAsString("sid"));
         assertEquals(7 * 24 * 3600L, jwt.getExpiresAt().getEpochSecond() - jwt.getIssuedAt().getEpochSecond());
         verify(sessions).save(any(AccountSession.class));

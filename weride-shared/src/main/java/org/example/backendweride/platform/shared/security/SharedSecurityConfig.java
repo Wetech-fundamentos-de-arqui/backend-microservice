@@ -1,5 +1,7 @@
 package org.example.backendweride.platform.shared.security;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +29,7 @@ public class SharedSecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)          // CORS is handled by the gateway
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                 "/actuator/health").permitAll()
                         .anyRequest().authenticated())

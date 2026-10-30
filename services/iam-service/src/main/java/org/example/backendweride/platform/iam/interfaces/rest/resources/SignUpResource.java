@@ -8,4 +8,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * @summary Represents the data required for signing up, including username and password.
  */
 @Schema(description = "Data required to register a new account.")
-public record SignUpResource(String username, String password) {}
+public record SignUpResource(
+        @jakarta.validation.constraints.NotBlank @Schema(maxLength = 254) String username,
+        @jakarta.validation.constraints.NotBlank @Schema(minLength = 8, maxLength = 64, format = "password") String password) {}
