@@ -1,0 +1,444 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WeRide API",
+    "description": "WeRide plan.",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Plans",
+      "description": "Manage the subscription plans offered to riders, including pricing, limits and benefits."
+    }
+  ],
+  "paths": {
+    "/api/v1/plans/{id}": {
+      "get": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Get plan by ID",
+        "description": "Retrieve a subscription plan using its ID.",
+        "operationId": "findPlanById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the plan",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Plan not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "plan-update-controller"
+        ],
+        "operationId": "update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Delete a plan",
+        "description": "Delete a subscription plan using its ID.",
+        "operationId": "deletePlanById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the plan",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Plan deleted successfully"
+          },
+          "401": {
+            "description": "Missing or invalid JWT token"
+          }
+        }
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Get all plans",
+        "description": "Retrieve every available subscription plan.",
+        "operationId": "findAllPlans",
+        "responses": {
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Plan"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Plans retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Plan"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plans found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Plan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Create a plan",
+        "description": "Create a new subscription plan with its pricing, usage limits and benefits.",
+        "operationId": "createPlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Plan created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Plan could not be created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreatePlanResource": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "float"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "float"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "durationDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxTripsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxMinutesPerTrip": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freeMinutesPerMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "discountPercentage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string"
+          },
+          "isPopular": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "description": "Data required to create a subscription plan."
+      },
+      "Plan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "float"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "float"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "durationDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxTripsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxMinutesPerTrip": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freeMinutesPerMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "discountPercentage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string"
+          },
+          "popular": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlanResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "float"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "float"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "durationDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxTripsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxMinutesPerTrip": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freeMinutesPerMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "discountPercentage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string"
+          },
+          "isPopular": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "description": "A subscription plan with its pricing, usage limits and benefits."
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
