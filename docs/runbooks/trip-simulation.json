@@ -1,0 +1,13 @@
+{
+  "bookingId": "ed179837-9e57-4748-a7bf-85abbc103056",
+  "status": "completed",
+  "routeSource": "simulated",
+  "points": 11,
+  "durationMinutes": 3,
+  "distanceKm": 0.39822401712748445,
+  "finalCost": 1.5,
+  "historyPersisted": true,
+  "angularTests": 58,
+  "focusedRetryTests": 2,
+  "browserVerified": true
+}

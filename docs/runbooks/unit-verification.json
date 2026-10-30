@@ -1,0 +1,111 @@
+{
+  "backend": {
+    "command": "mvn verify",
+    "successful": true,
+    "modules": [
+      {
+        "module": "weride-shared",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "api-gateway",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/iam-service",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/profile-service",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/garage-service",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/location-service",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/booking-service",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/ride-service",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/plan-service",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "services/notification-service",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "tests": 43,
+    "verifiedAt": "2026-10-30T00:42:16.526Z",
+    "verificationCommands": [
+      "mvn verify",
+      "mvn -pl api-gateway -am verify",
+      "mvn -pl services/iam-service -am verify"
+    ],
+    "gatewayTransportVerifiedAt": "2026-10-30T01:01:20.631Z",
+    "iamVerifiedAt": "2026-10-30T01:15:55.701Z"
+  },
+  "frontend": {
+    "command": "npm test -- --watch=false --browsers=ChromeHeadless",
+    "browser": "Edge Headless",
+    "tests": 58,
+    "successful": true,
+    "productionDockerBuild": true,
+    "verifiedAt": "2026-10-30T01:53:06.679Z",
+    "productionDockerBuildVerifiedAt": "2026-10-30T02:03:58.248Z",
+    "focusedSimulationRegression": {
+      "tests": 2,
+      "successful": true
+    }
+  },
+  "visualReview": {
+    "status": "simulation_flow_verified",
+    "scope": [
+      "local test account login",
+      "Simular y finalizar button visible",
+      "trip completed and rating dialog opened",
+      "completed route verified through history API",
+      "test account logged out"
+    ],
+    "previousLimitation": "Earlier broad visual review was blocked; this turn verified the simulation flow in the in-app browser."
+  }
+}
