@@ -1,0 +1,2014 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WeRide API",
+    "description": "WeRide ride.",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Trips",
+      "description": "Record, list and delete the trips of the authenticated user."
+    },
+    {
+      "name": "Travel History",
+      "description": "Keep a personal log of past rides: create, list and update the travel history records of the authenticated user."
+    },
+    {
+      "name": "Unlock Requests",
+      "description": "Request a simulated vehicle unlock, inspect its state and retry a QR or manual code. Requests belong to the authenticated user."
+    },
+    {
+      "name": "Problem Reports",
+      "description": "Report vehicle faults, attach an optional photo and consult personal reports. Reported vehicles enter maintenance; qualifying first-minute rides end without a charge."
+    }
+  ],
+  "paths": {
+    "/api/v1/travel-history/{id}": {
+      "put": {
+        "tags": [
+          "Travel History"
+        ],
+        "summary": "Update a Travel History record",
+        "description": "Update the location, vehicle, image, duration and distance of an existing travel history record owned by the authenticated user.",
+        "operationId": "updateTravelHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the travel history record",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTravelHistoryResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "403": {
+            "description": "The userId in the body belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Travel history not found or not owned by the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Travel history updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/rides/{bookingId}/start": {
+      "post": {
+        "tags": [
+          "internal-rides-controller"
+        ],
+        "operationId": "start",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/rides/{bookingId}/complete": {
+      "post": {
+        "tags": [
+          "internal-rides-controller"
+        ],
+        "operationId": "complete",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Completion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/rides/{bookingId}/cancel": {
+      "post": {
+        "tags": [
+          "internal-rides-controller"
+        ],
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/outbox/{eventId}/replay": {
+      "post": {
+        "tags": [
+          "outbox-controller"
+        ],
+        "operationId": "replay",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/unlockRequests": {
+      "get": {
+        "tags": [
+          "Unlock Requests"
+        ],
+        "summary": "Get my unlock requests",
+        "description": "List the authenticated user's requests in newest-first order, optionally filtered by booking. Returns an empty list when none exist.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "query",
+            "description": "Optional booking UUID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Optional account ID; must match the authenticated user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unlock requests retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnlockRequestResource"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnlockRequestResource"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId filter refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnlockRequestResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Unlock Requests"
+        ],
+        "summary": "Create an unlock request",
+        "description": "Create a pending request for a booking of the authenticated user. The server generates a random 6-character accessCode valid for 15 minutes and stores a notification carrying it; creating another request issues a fresh code. Creating the request does not start the ride. Request timestamps and scheduled time are set by the server.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUnlockRequestResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Invalid method, missing fields or vehicle does not match booking",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Booking already completed or cancelled",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Pending unlock request created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Booking belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "Get my trips",
+        "description": "Retrieve every trip that belongs to the authenticated user.",
+        "operationId": "getAllTrips",
+        "responses": {
+          "200": {
+            "description": "Trips retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No trips found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trip"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "Create a trip",
+        "description": "Record a completed trip (route, cost, duration, distance and environmental data) for the authenticated user. The userId in the body must match the authenticated account.",
+        "operationId": "createTrip",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTripCommandResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip could not be created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResource"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Trip created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/travel-history": {
+      "get": {
+        "tags": [
+          "Travel History"
+        ],
+        "summary": "Get My Travel Histories",
+        "description": "Retrieve all travel history records of the authenticated user.",
+        "operationId": "getAllTravelHistories",
+        "responses": {
+          "404": {
+            "description": "No travel histories found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Travel histories found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Travel History"
+        ],
+        "summary": "Create Travel History",
+        "description": "Create a new travel history record (location, vehicle, duration and distance) for the authenticated user. The userId in the body must match the authenticated account.",
+        "operationId": "createTravelHistory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTravelHistoryResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Travel history created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId in the body belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Related entity not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravelHistoryResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/problem-reports": {
+      "get": {
+        "tags": [
+          "Problem Reports"
+        ],
+        "summary": "Get my problem reports",
+        "description": "Retrieve reports submitted by the authenticated user, including maintenance status and whether the charge was waived. Returns an empty list when none exist.",
+        "operationId": "getMine",
+        "responses": {
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProblemReportSummary"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Personal problem reports retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProblemReportSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Problem Reports"
+        ],
+        "summary": "Create a problem report",
+        "description": "Persist a maintenance incident and mark the vehicle as maintenance so it leaves the available map. If a matching owned booking is in progress and began at most 60 seconds ago, finish it with zero charge and return chargeWaived=true. The incident is queued as pending_maintenance; no external maintenance notification is sent.",
+        "operationId": "create_1",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProblemReportResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Report saved and vehicle marked for maintenance",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle or booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid vehicle ID, category, description, photo or booking/vehicle mismatch",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Booking belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/unlockRequests/{id}": {
+      "get": {
+        "tags": [
+          "Unlock Requests"
+        ],
+        "summary": "Get an unlock request by ID",
+        "description": "Retrieve the pending, unlocked or failed state of a request owned by the authenticated user, including attempts and server timestamps.",
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unlock request UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unlock request retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unlock request not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Unlock Requests"
+        ],
+        "summary": "Attempt or retry a vehicle unlock",
+        "description": "Validate QR content weride:vehicle:<id>, or the request's server-generated accessCode for manual unlock. An expired accessCode fails like a wrong one, with errorMessage saying so. A recognized code changes the request to unlocked and starts the reserved booking transactionally; an unrecognized code returns 200 with status failed and permits retry. The server sets actualUnlockTime. Future or expired bookings cannot unlock; this simulation has no camera, IoT command or automatic timed unlock.",
+        "operationId": "attempt",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unlock request UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptUnlockCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Booking is future, expired, completed or cancelled, or vehicle is in maintenance",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request, booking or vehicle not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid method or missing/oversized code",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Attempt processed; inspect status unlocked or failed and errorMessage",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request or booking belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/rides/by-booking/{bookingId}": {
+      "get": {
+        "tags": [
+          "internal-rides-controller"
+        ],
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/outbox/failed": {
+      "get": {
+        "tags": [
+          "outbox-controller"
+        ],
+        "operationId": "failed",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FailedEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/bookings/{bookingId}/unlock": {
+      "get": {
+        "tags": [
+          "internal-rides-controller"
+        ],
+        "operationId": "unlock",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlockRequestResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{id}": {
+      "get": {
+        "tags": [
+          "trip-detail-controller"
+        ],
+        "operationId": "get_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Trips"
+        ],
+        "summary": "Delete a trip",
+        "description": "Delete a trip of the authenticated user using its ID.",
+        "operationId": "deleteTripById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the trip",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user"
+          },
+          "204": {
+            "description": "Trip deleted successfully"
+          },
+          "401": {
+            "description": "Missing or invalid JWT token"
+          },
+          "404": {
+            "description": "Trip not found"
+          }
+        }
+      }
+    },
+    "/api/v1/travel-history/{userId}": {
+      "get": {
+        "tags": [
+          "Travel History"
+        ],
+        "summary": "Get Travel History by User ID",
+        "description": "Retrieve the travel history records of a specific user. Only the user themselves can query their own records.",
+        "operationId": "getTravelHistoryById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "ID of the user whose travel history is requested",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Travel history not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The history belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Travel history found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravelHistory"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/problem-reports/{id}": {
+      "get": {
+        "tags": [
+          "Problem Reports"
+        ],
+        "summary": "Get a problem report by ID",
+        "description": "Retrieve a single maintenance report owned by the authenticated user.",
+        "operationId": "getById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Problem report UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Problem report not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Problem report retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Report belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/users/{userId}/personal-data/{workflowId}": {
+      "delete": {
+        "tags": [
+          "personal-data-controller"
+        ],
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UpdateTravelHistoryResource": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "vehicle": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "tripDuration": {
+            "type": "string"
+          },
+          "travelDistance": {
+            "type": "string"
+          }
+        },
+        "description": "Data used to update a travel history record. userId must match the authenticated account."
+      },
+      "TravelHistoryResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "vehicle": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "tripDuration": {
+            "type": "string"
+          },
+          "travelDistance": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A record of a past ride in the travel history of a user."
+      },
+      "Result": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCoordinates"
+            }
+          },
+          "routeSource": {
+            "type": "string"
+          }
+        }
+      },
+      "RouteCoordinates": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lng": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "Completion": {
+        "type": "object",
+        "properties": {
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "discount": {
+            "type": "number",
+            "format": "double"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "ratingScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratingComment": {
+            "type": "string"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCoordinates"
+            }
+          },
+          "routeSource": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateUnlockRequestResource": {
+        "required": [
+          "bookingId",
+          "method",
+          "vehicleId"
+        ],
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "description": "Booking UUID"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "Vehicle ID matching the booking",
+            "example": "1"
+          },
+          "method": {
+            "type": "string",
+            "description": "Unlock method",
+            "enum": [
+              "manual",
+              "qr_code"
+            ]
+          }
+        },
+        "description": "Create a pending unlock request for a reserved or in-progress booking owned by the authenticated user. The server takes the scheduled time from the booking."
+      },
+      "UnlockRequestResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unlock request UUID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Owner's account ID",
+            "example": "1"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "Vehicle ID matching the booking",
+            "example": "7"
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "Owned booking UUID"
+          },
+          "requestedAt": {
+            "type": "string",
+            "description": "Server timestamp at which the request was created",
+            "format": "date-time"
+          },
+          "scheduledUnlockTime": {
+            "type": "string",
+            "description": "Booking's scheduled start, or the creation time for an immediate booking",
+            "format": "date-time"
+          },
+          "actualUnlockTime": {
+            "type": "string",
+            "description": "Server timestamp of successful unlock; null until unlocked",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Current unlock state",
+            "enum": [
+              "pending",
+              "unlocked",
+              "failed"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "description": "Most recently used unlock method",
+            "enum": [
+              "manual",
+              "qr_code"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "description": "Compatibility field; always null because no location telemetry is collected",
+            "nullable": true
+          },
+          "unlockCode": {
+            "type": "string",
+            "description": "Code submitted on the latest attempt; empty before the first attempt",
+            "example": "weride:vehicle:7"
+          },
+          "attempts": {
+            "minimum": 0,
+            "type": "integer",
+            "description": "Number of processed code attempts",
+            "format": "int32",
+            "example": 1
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "Reason for a failed code; null when no code error exists",
+            "nullable": true
+          },
+          "accessCode": {
+            "type": "string",
+            "description": "Server-generated 6-character code the owner types for manual unlock; null on requests created before codes existed",
+            "nullable": true,
+            "example": "K7M2QX"
+          },
+          "codeExpiresAt": {
+            "type": "string",
+            "description": "Instant after which accessCode is rejected: 15 minutes after the request, or after the scheduled start if that is later",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "description": "Persisted simulated unlock state, with server timestamps and attempt count. A failed code can be retried."
+      },
+      "CreateTripCommandResource": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCoordinates"
+            }
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "carbonSaved": {
+            "type": "number",
+            "format": "double"
+          },
+          "caloriesBurned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weather": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "incidentReports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Data required to record a trip. userId must match the authenticated account."
+      },
+      "TripResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCoordinates"
+            }
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "carbonSaved": {
+            "type": "number",
+            "format": "double"
+          },
+          "caloriesBurned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weather": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "incidentReports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "A recorded trip with its route, metrics, costs and environmental data."
+      },
+      "CreateTravelHistoryResource": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "vehicle": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "tripDuration": {
+            "type": "string"
+          },
+          "travelDistance": {
+            "type": "string"
+          }
+        },
+        "description": "Data required to create a travel history record. userId must match the authenticated account."
+      },
+      "CreateProblemReportResource": {
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "string",
+            "description": "Vehicle ID",
+            "example": "1"
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "Required booking UUID; must be owned by the caller, match the vehicle and be reserved, in progress or completed within the last hour"
+          },
+          "categories": {
+            "type": "array",
+            "description": "At least one category: mechanical, tires, gps, battery, lock, other, brakes or damage",
+            "example": [
+              "brakes"
+            ],
+            "items": {
+              "type": "string",
+              "description": "At least one category: mechanical, tires, gps, battery, lock, other, brakes or damage",
+              "example": "[\"brakes\"]"
+            }
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string",
+            "description": "Description up to 2000 characters; may be empty"
+          },
+          "photo": {
+            "type": "string",
+            "description": "Optional JPEG, PNG or WebP data URL with base64 content, up to 1 MB decoded"
+          }
+        },
+        "description": "Vehicle fault report. User and report timestamp are taken from the authenticated session and server."
+      },
+      "ProblemReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Server-generated report UUID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Reporting account ID",
+            "example": "1"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "Reported vehicle ID",
+            "example": "7"
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "Related owned booking UUID; null for a report without a booking",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "description": "Selected incident categories: mechanical, tires, gps, battery, lock, other, brakes or damage",
+            "example": [
+              "brakes"
+            ],
+            "items": {
+              "type": "string",
+              "description": "Selected incident categories: mechanical, tires, gps, battery, lock, other, brakes or damage",
+              "example": "[\"brakes\"]"
+            }
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string",
+            "description": "User-provided description with surrounding whitespace removed"
+          },
+          "photo": {
+            "type": "string",
+            "description": "Optional JPEG, PNG or WebP base64 data URL, with at most 1 MB decoded content",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Maintenance queue status; no external maintenance service is notified",
+            "enum": [
+              "pending_maintenance"
+            ]
+          },
+          "reportDate": {
+            "type": "string",
+            "description": "Server timestamp at which the report was saved",
+            "format": "date-time"
+          },
+          "chargeWaived": {
+            "type": "boolean",
+            "description": "True if the related in-progress ride began at most 60 seconds before reporting and was completed with zero charge"
+          },
+          "bookingChecked": {
+            "type": "boolean"
+          },
+          "garageUpdated": {
+            "type": "boolean"
+          },
+          "processingStatus": {
+            "type": "string"
+          },
+          "requestKey": {
+            "type": "string"
+          },
+          "payloadHash": {
+            "type": "string"
+          }
+        },
+        "description": "Personal vehicle incident queued for maintenance, including the optional photo and first-minute charge-waiver result."
+      },
+      "AttemptUnlockCommand": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "Method used to interpret the submitted code",
+            "example": "qr_code",
+            "enum": [
+              "manual",
+              "qr_code"
+            ]
+          },
+          "unlockCode": {
+            "maxLength": 100,
+            "type": "string",
+            "description": "QR content weride:vehicle:<id>, or the accessCode of the unlock request for manual unlock. Manual comparison ignores case and surrounding spaces.",
+            "example": "weride:vehicle:7"
+          }
+        },
+        "description": "Code submitted for a simulated unlock attempt. Status, attempt count and timestamps are controlled by the server."
+      },
+      "FailedEvent": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextAttemptAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": "string"
+          }
+        }
+      },
+      "Trip": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCoordinates"
+            }
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "carbonSaved": {
+            "type": "number",
+            "format": "double"
+          },
+          "caloriesBurned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weather": {
+            "type": "string"
+          },
+          "temperature": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "incidentReports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "completionHash": {
+            "type": "string"
+          },
+          "routeSource": {
+            "type": "string"
+          }
+        }
+      },
+      "TravelHistory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "vehicle": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "tripDuration": {
+            "type": "string"
+          },
+          "travelDistance": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProblemReportSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "hasPhoto": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "reportDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "chargeWaived": {
+            "type": "boolean"
+          }
+        },
+        "description": "Problem report as listed: same as the detail but without the base64 photo; fetch GET /{id} for it."
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
