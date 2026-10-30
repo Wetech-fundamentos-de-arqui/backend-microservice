@@ -1,0 +1,2343 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WeRide API",
+    "description": "WeRide booking.",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Payments",
+      "description": "Simulated paid bookings of the authenticated user, with no stored card data. GET pagination defaults to page 0, limit 100 (max 100)."
+    },
+    {
+      "name": "Booking Drafts",
+      "description": "Save and remove personal booking drafts. Drafts expire 24 hours after saving and do not reserve or unlock a vehicle. Lists use zero-based page numbers and a maximum page size of 100."
+    },
+    {
+      "name": "Bookings",
+      "description": "Reserve vehicles and manage the booking lifecycle: create, start, complete, cancel, list and archive bookings of the authenticated user."
+    }
+  ],
+  "paths": {
+    "/api/v1/bookings/{bookingId}/start": {
+      "put": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Start a ride",
+        "description": "Mark the booking as started so the ride begins. Requires a destination set beforehand (409 otherwise).",
+        "operationId": "startRide_1",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Ride started successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Start a ride",
+        "description": "Mark the booking as started so the ride begins. Requires a destination set beforehand (409 otherwise).",
+        "operationId": "startRide",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Ride started successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/destination": {
+      "put": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Set or change the destination",
+        "description": "Store the free destination point and its estimate. Free while the booking is reserved; once the ride is in progress every change adds a fixed fee that is charged on completion.",
+        "operationId": "setDestination",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Booking is completed or cancelled",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Destination farther than 60 km from the pickup station",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coordinates",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Destination stored",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/archive": {
+      "put": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Archive a booking",
+        "description": "Mark a completed or cancelled booking of the authenticated user as archived. The booking is kept and still returned by the list endpoints with archived=true.",
+        "operationId": "archiveBooking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Booking archived successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Booking is still reserved or in progress",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/users/{userId}/deletion-lock": {
+      "post": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "prepare",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "abort",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/internal/v1/outbox/{eventId}/replay": {
+      "post": {
+        "tags": [
+          "outbox-controller"
+        ],
+        "operationId": "replay",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/internal/v1/bookings/{id}/problem-report": {
+      "post": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "fault",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Fault"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get my bookings",
+        "description": "List the bookings of the authenticated user, optionally filtered by vehicle.",
+        "operationId": "getAllBookings",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "description": "Optional vehicle ID used to filter the bookings",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings retrieved successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingResource"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Create a booking",
+        "description": "Reserve a vehicle for the authenticated user between a start and an end location. The userId in the body must match the authenticated account.",
+        "operationId": "createBooking",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Critical scooter battery below 15 percent or vehicle already reserved in that time range",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Booking could not be created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/rating": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Rate a completed booking",
+        "description": "Owner only. Score 1–5, optional comment up to 1000 characters and fixed tags. Returns 409 if not completed or already rated; 400 for invalid input.",
+        "operationId": "rateBooking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateBookingResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/destination/quote": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Quote a destination",
+        "description": "Estimate distance, minutes and cost of riding from the booking's pickup station to a free point. Nothing is saved. changeFee is only charged when the ride already started.",
+        "operationId": "quoteDestination",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Quote computed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationQuoteResource"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Destination farther than 60 km from the pickup station",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationQuoteResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coordinates",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationQuoteResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationQuoteResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/complete": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Complete a ride",
+        "description": "Finish the booking and atomically persist cost, distance, duration, average speed, an optional rating and up to 5000 observed GPS coordinates. Missing routeCoordinates stores an empty route.",
+        "operationId": "completeBooking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteBookingResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Booking completed successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookingDrafts": {
+      "get": {
+        "tags": [
+          "Booking Drafts"
+        ],
+        "summary": "Get my unexpired booking drafts",
+        "description": "List only the authenticated user's drafts whose server expiry is in the future, ordered by most recently saved. Pagination uses a zero-based page and a page size; returns an empty list when there are no unexpired drafts.",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Zero-based page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of drafts per page, from 1 to 100",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            },
+            "example": 100
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unexpired personal drafts retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingDraft"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Page must be non-negative and limit must be between 1 and 100",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingDraft"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingDraft"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Booking Drafts"
+        ],
+        "summary": "Save a booking draft",
+        "description": "Create a draft for an existing vehicle with a valid calendar date, local time and duration of 0.25 to 24 hours. The server supplies the owner, UUID, savedAt and expiresAt (24 hours after saving). A draft does not check availability, create a reservation or send reminder messages; reminder fields preserve the selected preferences.",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingDraftResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Missing or invalid vehicle ID, date, time or duration",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDraft"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Draft saved; Location header contains the new draft URL",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDraft"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId in the body refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDraft"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDraft"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get a booking",
+        "description": "Return one booking owned by the authenticated user, without the recorded route (use the history detail for that).",
+        "operationId": "getBooking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking returned",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Booking belongs to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel a booking",
+        "description": "Cancel a booking of the authenticated user without deleting it.",
+        "operationId": "cancelBooking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking cancelled successfully",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/vehicles/ratings": {
+      "get": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "ratings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number",
+                    "format": "double"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/outbox/failed": {
+      "get": {
+        "tags": [
+          "outbox-controller"
+        ],
+        "operationId": "failed",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FailedEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/bookings/{id}": {
+      "get": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get my simulated payments",
+        "description": "List completed, paid bookings of the authenticated account as simulated payments, ordered by the latest ride completion. Pagination uses a zero-based page and a page size. Returns an empty list when no paid bookings exist; this endpoint does not process payments or expose card details.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Optional account ID; must match the authenticated user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Zero-based page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of payments per page, from 1 to 100",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            },
+            "example": 100
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Page must be non-negative and limit must be between 1 and 100",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentResource"
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Simulated payments retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentResource"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentResource"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId filter refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get a simulated payment by ID",
+        "description": "Retrieve the payment derived from an owned booking. The payment ID is the booking UUID; only bookings with completed status and paid payment status are returned.",
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID, equal to the booking UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Simulated payment retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found or it is not completed and paid",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Booking belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/summary": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get my payment total",
+        "description": "Sum final costs of all completed, paid bookings of the authenticated account. This is the full simulated spending total rather than the sum of the current payment-list page.",
+        "operationId": "summary",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Optional account ID; must match the authenticated user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment total retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSummary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId filter refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/details": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get booking details",
+        "description": "Return one booking owned by the authenticated user together with its vehicle, start and end stations and, while the booking is reserved or in progress, the vehicle's current battery and the latest unlock request with its access code.",
+        "operationId": "getBookingDetails",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Unique identifier of the booking",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking details retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDetailsResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The resource belongs to another user",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDetailsResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDetailsResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDetailsResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/history": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get my trip history",
+        "description": "Page completed bookings owned by the authenticated account, including persisted metrics, final cost and recorded route. Old rides remain visible with an empty route.",
+        "operationId": "getHistory",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Zero based page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Page size from 1 to 100",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid page or size",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingHistoryResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "History page returned",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingHistoryResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingHistoryResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/history/{bookingId}": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get a completed ride",
+        "description": "Return one completed booking owned by the authenticated account with its recorded route and ride metrics.",
+        "operationId": "getHistoryDetail",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "description": "Completed booking UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Ride belongs to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Completed ride not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Completed ride returned",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/availability": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Check vehicle availability",
+        "description": "Tell whether a vehicle is free between start and end (ISO-8601 instants) and list its busy slots. Slots are anonymous.",
+        "operationId": "getAvailability",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Availability computed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleAvailabilityResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleAvailabilityResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/users/{userId}/personal-data/{workflowId}": {
+      "delete": {
+        "tags": [
+          "internal-bookings-controller"
+        ],
+        "operationId": "erase",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/bookingDrafts/{id}": {
+      "delete": {
+        "tags": [
+          "Booking Drafts"
+        ],
+        "summary": "Delete a booking draft",
+        "description": "Permanently remove a draft owned by the authenticated user. Expired drafts can also be deleted; deleting a draft does not affect reservations.",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Booking draft UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Draft not found"
+          },
+          "204": {
+            "description": "Draft deleted"
+          },
+          "401": {
+            "description": "Missing or invalid JWT token"
+          },
+          "403": {
+            "description": "Draft belongs to another user"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BookingResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "reservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualStartDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualEndDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "discount": {
+            "type": "number",
+            "format": "double"
+          },
+          "finalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "$ref": "#/components/schemas/RatingResource"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TripRouteCoordinate"
+            }
+          },
+          "routeSource": {
+            "type": "string"
+          },
+          "destinationLat": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinationLng": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinationAddress": {
+            "type": "string"
+          },
+          "estimatedDistance": {
+            "type": "number",
+            "format": "double"
+          },
+          "estimatedDuration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinationChangeFees": {
+            "type": "number",
+            "format": "double"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        },
+        "description": "A booking of a vehicle made by a user, with its status, costs, payment and ride metrics."
+      },
+      "RatingResource": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TripRouteCoordinate": {
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lng": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "A GPS observation recorded during the ride; latitude [-90,90], longitude [-180,180]."
+      },
+      "DestinationResource": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lng": {
+            "type": "number",
+            "format": "double"
+          },
+          "address": {
+            "type": "string"
+          }
+        },
+        "description": "Free destination point of a ride. address is the human readable text resolved by the client and is ignored when quoting."
+      },
+      "Fault": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "reportId": {
+            "type": "string"
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateBookingResource": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "Data required to reserve a vehicle. userId must match the authenticated account. startDate, endDate and totalCost are optional: omit them for an immediate ride."
+      },
+      "RateBookingResource": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DestinationQuoteResource": {
+        "type": "object",
+        "properties": {
+          "distanceKm": {
+            "type": "number",
+            "format": "double"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "discount": {
+            "type": "number",
+            "format": "double"
+          },
+          "changeFee": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "Estimated cost of riding to a destination. discount stays at 0 until plans grant benefits. changeFee is charged only when the ride already started. total = estimatedCost - discount + changeFee."
+      },
+      "CompleteBookingResource": {
+        "type": "object",
+        "properties": {
+          "totalCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "discount": {
+            "type": "number",
+            "format": "double"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "averageSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "$ref": "#/components/schemas/RatingResource"
+          },
+          "routeCoordinates": {
+            "type": "array",
+            "description": "Optional observed route, up to 5000 valid GPS coordinates; omitted means no route was recorded.",
+            "items": {
+              "$ref": "#/components/schemas/TripRouteCoordinate"
+            }
+          },
+          "routeSource": {
+            "type": "string",
+            "description": "Origin of the route: gps (default) or simulated when it was interpolated between stations.",
+            "enum": [
+              "gps",
+              "simulated"
+            ]
+          }
+        },
+        "description": "Final ride data used to complete a booking: costs, distance, duration, average speed and optional rating."
+      },
+      "CreateBookingDraftResource": {
+        "required": [
+          "selectedDate",
+          "unlockTime",
+          "vehicleId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Optional account ID; must match the authenticated user",
+            "example": "1"
+          },
+          "vehicleId": {
+            "maxLength": 255,
+            "minLength": 0,
+            "type": "string",
+            "description": "Opaque existing vehicle ID",
+            "example": "7"
+          },
+          "selectedDate": {
+            "pattern": "[0-9]{4}-[0-9]{2}-[0-9]{2}",
+            "type": "string",
+            "description": "Valid calendar date in YYYY-MM-DD format",
+            "example": "2026-10-02"
+          },
+          "unlockTime": {
+            "pattern": "[0-9]{2}:[0-9]{2}",
+            "type": "string",
+            "description": "Valid local time in HH:mm format",
+            "example": "14:30"
+          },
+          "duration": {
+            "maximum": 24,
+            "exclusiveMaximum": false,
+            "minimum": 0.25,
+            "exclusiveMinimum": false,
+            "type": "number",
+            "description": "Requested duration in hours, from 0.25 to 24",
+            "format": "double",
+            "example": 1
+          },
+          "smsReminder": {
+            "type": "boolean",
+            "description": "Saved SMS reminder preference; does not send an SMS"
+          },
+          "emailConfirmation": {
+            "type": "boolean",
+            "description": "Saved email confirmation preference; does not send an email"
+          },
+          "pushNotification": {
+            "type": "boolean",
+            "description": "Saved push notification preference; does not send a push notification"
+          }
+        },
+        "description": "Booking form values to save for later. Saving does not reserve a vehicle or check its availability."
+      },
+      "BookingDraft": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Server-generated draft UUID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Owner's account ID",
+            "example": "1"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "Existing vehicle ID",
+            "example": "7"
+          },
+          "selectedDate": {
+            "type": "string",
+            "description": "Saved local calendar date in YYYY-MM-DD format",
+            "example": "2026-10-02"
+          },
+          "unlockTime": {
+            "type": "string",
+            "description": "Saved local time in HH:mm format",
+            "example": "14:30"
+          },
+          "duration": {
+            "maximum": 24,
+            "minimum": 0.25,
+            "type": "number",
+            "description": "Saved duration in hours",
+            "format": "double",
+            "example": 1
+          },
+          "smsReminder": {
+            "type": "boolean",
+            "description": "Saved SMS reminder preference; does not send an SMS"
+          },
+          "emailConfirmation": {
+            "type": "boolean",
+            "description": "Saved email confirmation preference; does not send an email"
+          },
+          "pushNotification": {
+            "type": "boolean",
+            "description": "Saved push notification preference; does not send a push notification"
+          },
+          "savedAt": {
+            "type": "string",
+            "description": "Server timestamp at which the draft was saved",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "Server expiry timestamp, 24 hours after savedAt",
+            "format": "date-time"
+          }
+        },
+        "description": "Private saved booking form. Server expiry is 24 hours after saving; the draft does not reserve or unlock the vehicle."
+      },
+      "FailedEvent": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextAttemptAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": "string"
+          }
+        }
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string"
+          },
+          "startLocationId": {
+            "type": "string"
+          },
+          "endLocationId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualStartDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualEndDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PaymentResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment ID, equal to the booking UUID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Authenticated account ID",
+            "example": "1"
+          },
+          "bookingId": {
+            "type": "string",
+            "description": "Completed booking UUID"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Final booking cost in the indicated currency",
+            "format": "double",
+            "example": 12.5
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code",
+            "enum": [
+              "USD"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "description": "Booking payment method; card is exposed as credit_card",
+            "example": "credit_card"
+          },
+          "status": {
+            "type": "string",
+            "description": "Simulated payment state",
+            "enum": [
+              "completed"
+            ]
+          },
+          "transactionId": {
+            "type": "string",
+            "description": "Local simulated reference: booking- followed by the booking UUID"
+          },
+          "processedAt": {
+            "type": "string",
+            "description": "Server timestamp at which the booking ended",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "description": "Booking description containing the vehicle ID",
+            "example": "WeRide · 1"
+          }
+        },
+        "description": "Simulated payment derived from a completed, paid booking. No real charge, card number or CVV is stored."
+      },
+      "PaymentSummary": {
+        "type": "object",
+        "properties": {
+          "totalSpent": {
+            "type": "number",
+            "description": "Sum of final costs; zero when no paid bookings exist",
+            "format": "double",
+            "example": 25.0
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code",
+            "enum": [
+              "USD"
+            ]
+          }
+        },
+        "description": "Total spent on all completed, paid bookings of the authenticated user, independent of payment-list pagination."
+      },
+      "BookingDetailsResource": {
+        "type": "object",
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/BookingResource"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleSummary"
+          },
+          "startLocation": {
+            "$ref": "#/components/schemas/StationSummary"
+          },
+          "endLocation": {
+            "$ref": "#/components/schemas/StationSummary"
+          },
+          "unlock": {
+            "$ref": "#/components/schemas/UnlockSummary"
+          }
+        },
+        "description": "Everything the owner can see about one booking in a single response: the booking plus its vehicle, stations and latest unlock request."
+      },
+      "StationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "UnlockSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "accessCode": {
+            "type": "string"
+          },
+          "codeExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Latest unlock request; only present while the booking is reserved or in progress",
+        "nullable": true
+      },
+      "VehicleSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "currentBattery": {
+            "type": "integer",
+            "description": "Battery right now, not at booking time; only present while the booking is reserved or in progress",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "description": "Null when the vehicle no longer exists",
+        "nullable": true
+      },
+      "BookingHistoryResource": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingResource"
+            }
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "A page of completed bookings for the authenticated account, newest completed ride first. Historical bookings without recorded GPS return an empty route."
+      },
+      "BusySlot": {
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VehicleAvailabilityResource": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "busySlots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusySlot"
+            }
+          }
+        },
+        "description": "Whether a vehicle is free in a time range, plus its busy slots. Slots are anonymous: they never expose who booked."
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
