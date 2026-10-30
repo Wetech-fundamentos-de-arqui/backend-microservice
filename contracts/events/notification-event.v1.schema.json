@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:weride:notification-event:v1",
+  "title": "WeRide notification event v1",
+  "description": "PUT /internal/v1/notification-events/{sourceService}/{eventId}; caller must match booking or ride. Identical duplicate returns the existing result; changed payload returns 409. A deleted recipient is acknowledged without recreating data.",
+  "type": "object",
+  "required": ["eventType", "userId", "title", "message", "occurredAt"],
+  "properties": {
+    "eventType": {"type": "string", "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*\\.v1$"},
+    "userId": {"type": "string", "minLength": 1, "maxLength": 254, "description": "Opaque stable account id (JWT sub)"},
+    "title": {"type": "string", "maxLength": 255},
+    "message": {"type": "string", "maxLength": 2000},
+    "type": {"type": ["string", "null"]},
+    "category": {"type": ["string", "null"]},
+    "priority": {"type": ["string", "null"]},
+    "relatedEntityId": {"type": ["string", "null"]},
+    "relatedEntityType": {"type": ["string", "null"]},
+    "icon": {"type": ["string", "null"]},
+    "color": {"type": ["string", "null"]},
+    "occurredAt": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
