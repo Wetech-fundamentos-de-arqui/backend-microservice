@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-10-30T01:21:39.825638Z",
+  "base": "http://localhost:4200/api/v1",
+  "executionStrategy": "Full suite followed by focused IAM regressions after the final IAM-only corrections.",
+  "successful": true,
+  "tests": [
+    {
+      "test": "test_01_health_and_security",
+      "status": "passed",
+      "source": "iam-http-regression.json"
+    },
+    {
+      "test": "test_02_profile_lazy_creation_and_ownership",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_03_catalog_favorites_and_drafts",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_04_concurrent_first_reservation_and_idempotency",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_05_ride_unlock_history_rating_and_payments",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_06_incident_waiver_and_active_cancellation",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_07_notification_deduplication",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_08_account_deletion_and_tombstones",
+      "status": "passed",
+      "source": "iam-http-regression.json"
+    },
+    {
+      "test": "test_09_restart_and_dependency_failure",
+      "status": "passed",
+      "source": "local-integration-full.json"
+    },
+    {
+      "test": "test_10_existing_iam_session_and_password_flows",
+      "status": "passed",
+      "source": "iam-http-regression.json"
+    }
+  ],
+  "sourceRuns": [
+    {
+      "report": "local-integration-full.json",
+      "successful": false,
+      "note": "Nine groups passed; deleted-account lookup still returned 500."
+    },
+    {
+      "report": "iam-http-regression.json",
+      "successful": true,
+      "note": "Authentication, deletion/tombstones and session/password flows passed after the IAM correction."
+    }
+  ],
+  "additionalAuthenticationValidation": {
+    "report": "auth-validation.json",
+    "successful": true,
+    "cases": 6
+  }
+}

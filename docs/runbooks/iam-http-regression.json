@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-10-30T01:21:39.825638Z",
+  "base": "http://localhost:4200/api/v1",
+  "successful": true,
+  "tests": [
+    {
+      "test": "test_01_health_and_security",
+      "status": "passed"
+    },
+    {
+      "test": "test_08_account_deletion_and_tombstones",
+      "status": "passed"
+    },
+    {
+      "test": "test_10_existing_iam_session_and_password_flows",
+      "status": "passed"
+    }
+  ]
+}

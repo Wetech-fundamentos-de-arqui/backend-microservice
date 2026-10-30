@@ -1,0 +1,451 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WeRide API",
+    "description": "WeRide IAM: accounts, sign-in and sessions.",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Public endpoints to register new accounts and sign in to obtain a JWT token."
+    },
+    {
+      "name": "Accounts",
+      "description": "Consult the account of the authenticated user."
+    }
+  ],
+  "paths": {
+    "/api/v1/accounts/me/password": {
+      "put": {
+        "tags": [
+          "Account security"
+        ],
+        "summary": "Change password and revoke other devices",
+        "description": "Requires the current password. The new password must contain 8 to 64 characters and fit the BCrypt 72-byte limit. Keeps the current session.",
+        "operationId": "password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "CURRENT_PASSWORD_INVALID or NEW_PASSWORD_INVALID"
+          }
+        }
+      }
+    },
+    "/api/v1/authentication/sign-up": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Sign up for a new account",
+        "description": "Create a new user account with a username and password.",
+        "operationId": "signUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Account creation failed, for example the username already exists or the data is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/authentication/sign-in": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Sign in to the system",
+        "description": "Authenticate a user with username and password and return the account ID and a JWT token to use as Bearer token.",
+        "operationId": "signIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedAccountResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid username or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedAccountResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/me/sessions/revoke-others": {
+      "post": {
+        "tags": [
+          "Account security"
+        ],
+        "summary": "Revoke other active sessions",
+        "description": "Returns the number revoked, including zero when no other unexpired sessions exist.",
+        "operationId": "revoke",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/me/sessions/logout": {
+      "post": {
+        "tags": [
+          "Account security"
+        ],
+        "summary": "Revoke the current session",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/me/delete": {
+      "post": {
+        "tags": [
+          "Account security"
+        ],
+        "summary": "Start deleting the own account",
+        "description": "Requires the password. Creates (or returns) the persisted deletion workflow of ADR-008, marks the account DELETION_PENDING and revokes its sessions; the other services erase their personal data asynchronously.",
+        "operationId": "delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "503": {
+            "description": "BOOKING_UNAVAILABLE: nothing was changed, retry later",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Deletion workflow accepted; body has the workflowId",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ACTIVE_BOOKINGS: finish or cancel all active bookings first",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CURRENT_PASSWORD_INVALID",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/sessions/{sid}": {
+      "get": {
+        "tags": [
+          "Internal sessions"
+        ],
+        "summary": "Is the session still active?",
+        "description": "Unknown, revoked or expired sessions and accounts in DELETION_PENDING answer active=false.",
+        "operationId": "status",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{accountId}": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Get account by ID",
+        "description": "Retrieve account details using the account ID. Only the owner of the account can query it.",
+        "operationId": "getAccountById",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "description": "Unique identifier of the account",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "The account belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Account found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PasswordChange": {
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "description": "Current password and replacement password; never persisted as plain text"
+      },
+      "SignUpResource": {
+        "required": [
+          "password",
+          "username"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 64,
+            "minLength": 8,
+            "type": "string",
+            "format": "password"
+          }
+        },
+        "description": "Data required to register a new account."
+      },
+      "AccountResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "description": "A user account with its ID and username."
+      },
+      "SignInResource": {
+        "required": [
+          "password",
+          "username"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 72,
+            "type": "string",
+            "format": "password"
+          }
+        },
+        "description": "Credentials required to sign in."
+      },
+      "AuthenticatedAccountResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "description": "The signed-in account ID and the JWT token to send as Bearer token."
+      },
+      "DeleteAccount": {
+        "required": [
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
+          }
+        },
+        "description": "Password confirmation for permanent account deletion"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
