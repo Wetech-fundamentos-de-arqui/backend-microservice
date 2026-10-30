@@ -1,0 +1,1067 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WeRide API",
+    "description": "WeRide garage.",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Favorites",
+      "description": "Save vehicles as personal favorites, check whether a vehicle is a favorite and remove saved favorites. All operations use the authenticated user's account."
+    },
+    {
+      "name": "Vehicles",
+      "description": "Manage the vehicle fleet: register, list, consult, update and remove vehicles."
+    }
+  ],
+  "paths": {
+    "/internal/v1/vehicles/{id}/maintenance": {
+      "put": {
+        "tags": [
+          "internal-vehicles-controller"
+        ],
+        "operationId": "maintenance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/internal/v1/vehicles/{id}/location": {
+      "put": {
+        "tags": [
+          "internal-vehicles-controller"
+        ],
+        "operationId": "move",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Move"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}": {
+      "get": {
+        "tags": [
+          "Vehicles"
+        ],
+        "summary": "Get vehicle by ID",
+        "description": "Retrieve the details of a single vehicle using its ID.",
+        "operationId": "getVehicleById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the vehicle",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vehicle found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Vehicles"
+        ],
+        "summary": "Update a vehicle",
+        "description": "Update the data of an existing vehicle identified by its ID.",
+        "operationId": "updateVehicle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the vehicle",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVehicleResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Vehicle updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Vehicles"
+        ],
+        "summary": "Delete a vehicle",
+        "description": "Permanently remove a vehicle from the fleet using its ID.",
+        "operationId": "deleteVehicle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Unique identifier of the vehicle",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Vehicle deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles": {
+      "get": {
+        "tags": [
+          "Vehicles"
+        ],
+        "summary": "Get all vehicles",
+        "description": "Retrieve every vehicle registered in the fleet.",
+        "operationId": "getAllVehicles",
+        "responses": {
+          "200": {
+            "description": "Vehicles retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleResource"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vehicles"
+        ],
+        "summary": "Create a vehicle",
+        "description": "Register a new vehicle in the fleet and return the stored vehicle.",
+        "operationId": "createVehicle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVehicleResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Vehicle created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid vehicle data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites": {
+      "get": {
+        "tags": [
+          "Favorites"
+        ],
+        "summary": "Get my favorite vehicles",
+        "description": "List the authenticated user's favorites in newest-first order. Returns an empty list when none exist. The optional userId must match the authenticated account.",
+        "operationId": "getFavorites",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Optional account ID; must match the authenticated user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Favorites retrieved",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteResource"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteResource"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId filter refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteResource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Favorites"
+        ],
+        "summary": "Save a favorite vehicle",
+        "description": "Save an existing vehicle for the authenticated user with optional notes up to 500 characters. A vehicle can be saved only once per account; a repeated request returns the existing favorite, while a concurrent duplicate may return 409. IDs and timestamps are set by the server.",
+        "operationId": "createFavorite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFavoriteResource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "409": {
+            "description": "Concurrent duplicate favorite",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid vehicle ID or oversized notes",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Favorite created or existing favorite returned",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId in the body refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vehicle not found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/vehicles/{id}": {
+      "get": {
+        "tags": [
+          "internal-vehicles-controller"
+        ],
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vehicle"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites/check": {
+      "get": {
+        "tags": [
+          "Favorites"
+        ],
+        "summary": "Check whether a vehicle is a favorite",
+        "description": "Return true if the authenticated user has saved the given vehicle, otherwise false.",
+        "operationId": "checkFavorite",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "description": "Vehicle ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Optional account ID; must match the authenticated user",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Missing or invalid vehicle ID",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Favorite status returned as a boolean",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid JWT token",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The userId filter refers to another account",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/v1/users/{userId}/personal-data/{workflowId}": {
+      "delete": {
+        "tags": [
+          "personal-data-controller"
+        ],
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/favorites/{id}": {
+      "delete": {
+        "tags": [
+          "Favorites"
+        ],
+        "summary": "Remove a favorite vehicle",
+        "description": "Delete a favorite owned by the authenticated user. The path ID is the favorite ID, not the vehicle ID.",
+        "operationId": "deleteFavorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Favorite ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Favorite belongs to another user"
+          },
+          "400": {
+            "description": "Invalid favorite ID"
+          },
+          "404": {
+            "description": "Favorite not found"
+          },
+          "204": {
+            "description": "Favorite removed"
+          },
+          "401": {
+            "description": "Missing or invalid JWT token"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Move": {
+        "type": "object",
+        "properties": {
+          "locationId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateVehicleResource": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "battery": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpeed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "range": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          },
+          "color": {
+            "type": "string"
+          },
+          "licensePlate": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "image": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maintenanceStatus": {
+            "type": "string"
+          },
+          "lastMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalKilometers": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "Data used to update an existing vehicle."
+      },
+      "VehicleResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "battery": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpeed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "range": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          },
+          "color": {
+            "type": "string"
+          },
+          "licensePlate": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "image": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maintenanceStatus": {
+            "type": "string"
+          },
+          "lastMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalKilometers": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "A vehicle of the fleet with its technical, pricing and maintenance data."
+      },
+      "CreateVehicleResource": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "battery": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpeed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "range": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          },
+          "color": {
+            "type": "string"
+          },
+          "licensePlate": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "image": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maintenanceStatus": {
+            "type": "string"
+          },
+          "lastMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalKilometers": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "Data required to register a new vehicle in the fleet."
+      },
+      "CreateFavoriteResource": {
+        "required": [
+          "vehicleId"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleId": {
+            "type": "integer",
+            "description": "Positive ID of an existing vehicle",
+            "format": "int64",
+            "example": 1
+          },
+          "userId": {
+            "type": "string",
+            "description": "Optional account ID; must match the authenticated account",
+            "example": "1"
+          },
+          "notes": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string",
+            "description": "Optional personal notes, up to 500 characters"
+          }
+        },
+        "description": "Existing vehicle to save as a favorite for the authenticated user, with optional personal notes."
+      },
+      "FavoriteResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Favorite ID used when deleting the favorite",
+            "example": "1"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Owner's account ID",
+            "example": "1"
+          },
+          "vehicleId": {
+            "type": "string",
+            "description": "Saved vehicle ID",
+            "example": "7"
+          },
+          "addedAt": {
+            "type": "string",
+            "description": "Server timestamp at which the favorite was saved",
+            "format": "date-time"
+          },
+          "notes": {
+            "maxLength": 500,
+            "type": "string",
+            "description": "Optional personal notes"
+          }
+        },
+        "description": "Personal saved vehicle. The favorite ID is distinct from its vehicle ID."
+      },
+      "Vehicle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "battery": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxSpeed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "range": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double"
+          },
+          "color": {
+            "type": "string"
+          },
+          "licensePlate": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "pricePerMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "image": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maintenanceStatus": {
+            "type": "string"
+          },
+          "lastMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextMaintenance": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalKilometers": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
